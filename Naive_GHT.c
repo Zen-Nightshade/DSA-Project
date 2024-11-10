@@ -309,8 +309,6 @@ double absolute( double x){
 
 bool Tree_Construct(node* root){
 
-    
-
     if(root == NULL){
         printf("ERROR: NULL root given to Tree Constructor\n");
         return false;
