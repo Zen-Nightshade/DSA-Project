@@ -3,6 +3,7 @@
 #include<time.h>
 #include<math.h>
 #include<stdbool.h>
+#include<string.h>
 
 #define dimension 3
 #define K 50
@@ -37,6 +38,8 @@ typedef struct node{
     struct node* left_node;
     struct node* right_node;
     struct node* parent;
+    double split_2quality;
+    double split_3quality;
 
 }node;
 
@@ -56,6 +59,9 @@ node * Create_node(){
 
     new_node->pivot_1=NULL;
     new_node->pivot_2=NULL;
+
+    new_node->split_2quality=-1;
+    new_node->split_3quality= -1;
 
     return new_node;
 }
@@ -158,9 +164,7 @@ bool Insert_data(node * root){
         }
     // assigning the first point to the data chain
     root->data_chain = point;
-    root->count++;
-
-    data_point * new_point = Create_point();
+    root->count++;   
 
     while(!feof(fptr)){
         //initilaizing the read variable to measure the number of inputs read
@@ -222,8 +226,6 @@ bool Hyperplane_Generator (node * root){
     }
     while (rand2 == rand1);
 
-    printf("rand1 = %d, rand2 = %d\n", rand1, rand2);  //---------------------------------------------------------------------------
-
     // creating a pointer to the data points to iterate through the data chain
     data_point * point = root->data_chain;
     
@@ -231,7 +233,6 @@ bool Hyperplane_Generator (node * root){
     for(int i=0; i< root->count; ++i){
         if(i == rand1){
             root->pivot_1 = point;
-            printf("pivote-1: %f, %f, %f\n", point->array[0], point->array[1], point->array[2]);
             break;
         }
         
@@ -251,7 +252,6 @@ bool Hyperplane_Generator (node * root){
     for(int i=0; i< root->count; ++i){
         if(i == rand2){
             root->pivot_2 = point;
-            printf("pivote-2: %f, %f, %f\n", point->array[0], point->array[1], point->array[2]);//------------------------------------------
             break;
         }
         
@@ -265,6 +265,44 @@ bool Hyperplane_Generator (node * root){
     }
     
     return true;
+}
+
+data_point* unit_vector(data_point * p1, data_point * p2){
+    data_point * unit_point = Create_point();
+    double sum2=0;
+
+    for(int i=0; i< dimension; ++i){
+        unit_point->array[i]= p2->array[i] - p1->array[i];
+        sum2 += unit_point->array[i] * unit_point->array[i];
+    }
+
+    for(int i=0; i< dimension; ++i){
+        unit_point->array[i] /= sqrt(sum2);
+    }
+    return unit_point;
+}
+
+double hyperplane(data_point * unit_point, data_point* mid_point, data_point* point){
+    data_point* new_point= Create_point();
+
+    for(int i=0; i< dimension; ++i){
+        new_point->array[i] = point->array[i] - mid_point->array[i];
+    }
+
+    double projection=0;
+    for(int i=0; i< dimension; ++i){
+        projection += new_point->array[i] * unit_point->array[i];
+    }
+    free(new_point);
+    return projection;
+}
+double absolute( double x){
+    if(x>=0){
+        return x;
+    }
+    else{
+        return -x;
+    }
 }
 
                                                 // Function to construct the Tree in a recurcive manner
@@ -289,6 +327,18 @@ bool Tree_Construct(node* root){
     data_point * point = root->data_chain;
 
     int loop =root->count;
+    double lsum1=0;
+    double lsum2=0;
+    double rsum1=0;
+    double rsum2=0;
+
+    data_point *unit_point = unit_vector(root->pivot_1, root->pivot_2);
+    data_point * mid_point = Create_point();
+    for(int i=0; i<dimension; ++i){
+        mid_point->array[i]= (root->pivot_1->array[i] + root->pivot_2->array[i])/2;
+        // printf("%f, ", unit_point->array[i]);
+    }
+    // printf("\n");
 
     for (int i = 0; i < loop; ++i){
         if(point->next != NULL){
@@ -298,6 +348,12 @@ bool Tree_Construct(node* root){
                 point = point->next;
                 Insert_point(left_child, point->prev);
                 left_child->count++;
+
+                double x = hyperplane(unit_point, mid_point, point -> prev);
+                x = absolute(x);
+                lsum1 += x;
+                lsum2 += x*x;
+                
             }
             // point is closer to pivot2
             else if(Distance(point, root->pivot_1) < Distance(point, root->pivot_2)){ 
@@ -305,7 +361,11 @@ bool Tree_Construct(node* root){
                 point = point->next;
                 Insert_point(right_child, point->prev);
                 right_child->count++;
-                
+
+                double x = hyperplane(unit_point, mid_point, point -> prev);
+                x = absolute(x);
+                rsum1 += x;
+                rsum2 += x*x;                
             }
             // point is equiv distant from pivot1 and pivot2
             else if(Distance(point, root->pivot_1) == Distance(point, root->pivot_2)){ 
@@ -317,11 +377,20 @@ bool Tree_Construct(node* root){
                     Insert_point(left_child, point->prev);
                     left_child->count++;
                     
+                    double x = hyperplane(unit_point, mid_point, point -> prev);
+                    x = absolute(x);
+                    lsum1 += x;
+                    lsum2 += x*x;
                 }
                 else{
                     point = point->next;
                     Insert_point(right_child, point->prev);
                     right_child->count++;
+
+                    double x = hyperplane(unit_point, mid_point, point -> prev);
+                    x = absolute(x);
+                    rsum1 += x;
+                    rsum2 += x*x;  
                     
                 }
             }
@@ -335,6 +404,11 @@ bool Tree_Construct(node* root){
             
             Insert_point(left_child, point);
             left_child->count++;
+
+            double x = hyperplane(unit_point, mid_point, point -> prev);
+            x = absolute(x);
+            lsum1 += x;
+            lsum2 += x*x;
             
         }
         // point is closer to pivot2
@@ -342,6 +416,11 @@ bool Tree_Construct(node* root){
             
             Insert_point(right_child, point);
             right_child->count++;
+
+            double x = hyperplane(unit_point, mid_point, point -> prev);
+            x = absolute(x);
+            rsum1 += x;
+            rsum2 += x*x;  
             
         }
         // point is equiv distant from pivot1 and pivot2
@@ -353,23 +432,43 @@ bool Tree_Construct(node* root){
 
                 Insert_point(left_child, point);
                 left_child->count++;
+
+                double x = hyperplane(unit_point, mid_point, point -> prev);
+                x = absolute(x);
+                lsum1 += x;
+                lsum2 += x*x;
                 
             }
             else{
                 Insert_point(right_child, point);
                 right_child->count++;
-                
+
+                double x = hyperplane(unit_point, mid_point, point -> prev);
+                x = absolute(x);
+                rsum1 += x;
+                rsum2 += x*x;  
             }
         }
-    
-    printf("Inserted points to children with left = %d and right = %d\n", left_child->count, right_child->count); //---------------------------
+
+        free(unit_point);
 
     root->left_node = left_child;
     left_child->parent = root;
+    double lavg = lsum1/left_child->count;
+    double lvar = lsum2/left_child->count - lavg*lavg;
+    double lstd = sqrt(lvar);
+    // printf("lavg = %f, lstd= %f\n", lavg, lstd);
+    left_child->split_2quality = lavg - 2*lstd;
+    left_child->split_3quality = lavg - 3*lstd;
 
     root->right_node = right_child;
     right_child->parent = root;
-
+    double ravg = rsum1/right_child->count;
+    double rvar = rsum2/right_child->count - ravg*ravg;
+    double rstd = sqrt(rvar);
+    // printf("ravg = %f, rstd= %f\n", ravg, rstd);
+    right_child->split_2quality= ravg - 2*rstd;
+    right_child->split_3quality= ravg - 3*rstd;
     
 
     // calling tree construct on left child
@@ -394,7 +493,7 @@ bool Tree_Construct(node* root){
 }
 
 data_point * Free_data_chain(data_point * point){
-
+    
     if(point == NULL){
         printf("data chain is empty\n");
 
@@ -449,7 +548,7 @@ void node_info_printer(FILE *fptr, node* root){
         fprintf(fptr, "NULL");
     }
     
-    fprintf(fptr, "<br> count= %d <br> Equal_count= %d <br>", root->count, root->equal_count);
+    fprintf(fptr, "<br> count= %d <br> Equal_count= %d <br> Split 2Quality = %f <br> Split 3Quality = %f <br>", root->count, root->equal_count, root->split_2quality, root->split_3quality);
     Naive2++;
 
     fprintf(fptr, "p%d : ", Naive2);
@@ -490,7 +589,7 @@ void node_printer( FILE *fptr, node* root){
 
 bool Display_Naive_Tree(node*root){
 
-    FILE *fptr = fopen("Tree.md","w");
+    FILE *fptr = fopen("Naive_Tree.md","w");
 
     if(fptr == NULL){
         printf("ERROR: Opening the file\n");
@@ -509,6 +608,83 @@ bool Display_Naive_Tree(node*root){
     return true;
 }
 
+int max(int h1, int h2){
+    if(h1 >= h2){
+        return h1;
+    }
+    else
+    return h2;
+}
+int count_nodes=0;
+int count_leaf=0;
+int sum2_leaf=0;
+double split2_sum1=0;
+double split3_sum1=0;
+double split2_sum2=0;
+double split3_sum2=0;
+
+int height_of_tree(node * root){
+    if(root == NULL){
+        return 0;
+    }
+    
+    int h=1, h1=0, h2=0;
+
+    if(root->left_node != NULL){
+        h1 = height_of_tree(root->left_node);
+        count_nodes++;
+        double s2=root->split_2quality;
+        double s3= root->split_3quality;
+        split2_sum1 += s2;
+        split2_sum2 += s2*s2;
+
+        split3_sum1 += s3;
+        split3_sum2 += s3*s3;
+    }
+
+    if(root-> right_node != NULL){
+        h2 = height_of_tree(root->right_node);
+        count_nodes++;
+        double s2=root->split_2quality;
+        double s3= root->split_3quality;
+        split2_sum1 += s2;
+        split2_sum2 += s2*s2;
+
+        split3_sum1 += s3;
+        split3_sum2 += s3*s3;
+    }
+    if(root->left_node == NULL && root->right_node == NULL){
+        count_leaf++;
+        sum2_leaf += (root->count)*(root->count);
+    }
+
+    h += max(h1, h2);
+
+    return h;
+}
+int sum_balance=0;
+int balance_factor(node * root){
+    
+    if(root == NULL){
+        return 0;
+    }
+    else{
+        return abs(height_of_tree(root->left_node) - height_of_tree(root->right_node));
+    }
+}
+int sum_of_balance_factor(node * root){
+    if(root == NULL){
+        return 0;
+    }
+    int bf = balance_factor(root);
+
+    int suml = sum_of_balance_factor(root->left_node);
+    int sumr = sum_of_balance_factor(root->right_node);
+
+    return bf+sumr+suml;
+}
+
+
 int main(){
     
     node * root = Create_node();
@@ -524,6 +700,29 @@ int main(){
 
     Tree_Construct(root);
 
+    int h = height_of_tree(root);
+    printf("Height = %d\n", h-1);
+
+    printf("no. of nodes = %d\n", count_nodes+1);
+    printf("no. of leaf nodes = %d\n", count_leaf);
+
+    double average_leaf_size = (double)root->count/count_leaf;
+    double variance_leaf = (double)(sum2_leaf)/count_leaf - (average_leaf_size)*(average_leaf_size);
+    float std_dev_leaf = sqrt(variance_leaf);
+    printf("Average leaf size = %f\n",average_leaf_size);
+    printf("Stndard deviation of leaf size = %f\n", std_dev_leaf);
+
+    double avg_split2 = split2_sum1/count_nodes;
+    double var_split2 = split2_sum2/count_nodes - avg_split2*avg_split2;
+    double std_split2 = sqrt(var_split2);
+    printf("Average Split-2 quality= %f \nand Std_dev = %f\n", avg_split2, std_split2);
+
+    double avg_split3 = split3_sum1/count_nodes;
+    double var_split3 = split3_sum2/count_nodes - avg_split3*avg_split3;
+    double std_split3 = sqrt(var_split3);
+    printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_split3, std_split3);
+    
+    
     check = Display_Naive_Tree(root);
     if(check == 1){
         printf("printed to the file\n");

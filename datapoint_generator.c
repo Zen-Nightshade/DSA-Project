@@ -5,8 +5,8 @@
 
 #define min_treshold 10
 #define threshold 50
-#define clusters 4
-#define N 1000
+int clusters=4;
+int N=1000;
 
 typedef struct {
     double *coordinates;
@@ -36,28 +36,50 @@ double distance( double * p1, double *p2, int dimension){
     return sqrt(square_sum);
 }
 
+int minimum(double * array){
+    double min=array[0];
+    int pos=0;
+    for(int i=1; i< clusters; ++i){
+        if(min > array[i]){
+            min = array[i];
+            pos =i;
+        }
+    }
+    return pos;
+}
+
 //function to priint all the distances
-void Distance_printer (Point * centers, int dimension){
+void Radii_finalizer (Point * centers, int dimension, double* cluster_radii, int *percentages){
+    // double *cluster_radii= malloc(clusters*sizeof(double));
 
     for(int i=0; i< clusters; ++i){
 
-        
+        double cluster_dist[clusters];
         printf("\n-------------------cluster %d-------------------\n", i+1);
 
         for(int j=0; j<clusters; ++j ){
 
             if(i==j){
+                cluster_dist[i]= 9999;
                 continue;
             }
             
             if(centers[i].coordinates!=NULL && centers[j].coordinates!= NULL){
-                printf("d(%d,%d)= %f\n", i+1,j+1,distance(centers[i].coordinates, centers[j].coordinates, dimension));
+                cluster_dist[j] = distance(centers[i].coordinates, centers[j].coordinates, dimension);
+                printf("d(%d,%d)= %f\n", i+1,j+1,cluster_dist[j]);
             }
             else{
                 printf("Error in i= %d and j=%d\n",i,j);
             }
         }
+        int min= minimum(cluster_dist);
+        int x= percentages[i];
+        int y= percentages[min];
+        cluster_radii[i]= (cluster_dist[min])/2;
+        printf("clster-%d : radius = %lf with %% = %d\n", i, cluster_radii[i], percentages[i]);
+
     }
+    return;
 }
 
 void generate_centers(Point *centers, int dimensions){
@@ -109,12 +131,14 @@ void generate_centers(Point *centers, int dimensions){
 
     }
     //printing the distances between the centers
-    Distance_printer(centers,dimensions);
+    // Distance_printer(centers,dimensions);
 
     return;
 }
 
 void generate_points(Point *centers, double *radii, int *percentages, int dimensions) {
+
+    srand(time(NULL));
 
     //opening the file
     FILE *file = fopen("cluster_data.csv", "w");
@@ -161,6 +185,7 @@ void generate_points(Point *centers, double *radii, int *percentages, int dimens
     printf("Data successfully written to cluster_data.csv\n");
 }
 
+
 int main() {
     int dimensions;
     double radii[clusters];
@@ -168,18 +193,22 @@ int main() {
 
     printf("Enter the number of dimensions for the clusters: ");
     scanf("%d", &dimensions);
+    printf("Enter the number of points: ");
+    scanf("%d", &N);
+    printf("Enter the number of clusters: ");
+    scanf("%d", &clusters);
+    
 
     // Allocate memory for centers
     Point centers[clusters];
 
     // Generate and print cluster centers
     generate_centers(centers, dimensions);
-
     // Get radius for each cluster
-    for (int i = 0; i < clusters; i++) {
-        printf("Enter the radius for Cluster-%d: ", i + 1);
-        scanf("%lf", &radii[i]);
-    }
+    // for (int i = 0; i < clusters; i++) {
+    //     printf("Enter the radius for Cluster-%d: ", i + 1);
+    //     scanf("%lf", &radii[i]);
+    // }
 
     // Get percentage distribution for each cluster
     int total_percentage = 0;
@@ -193,6 +222,7 @@ int main() {
         printf("Error: Total percentage must add up to 100.\n");
         return 1;
     }
+    Radii_finalizer(centers,dimensions,radii, percentage_distribution);
     char input;
     printf("Do you want to generate the data and write it to the CSV file?, if yes enter 'y': ");
     scanf(" %c", &input);
@@ -200,6 +230,7 @@ int main() {
         // Generate points and write to CSV
         generate_points(centers, radii, percentage_distribution, dimensions);
     }
+    
     // Free memory for centers
     for (int i = 0; i < clusters; i++) {
         free(centers[i].coordinates);
