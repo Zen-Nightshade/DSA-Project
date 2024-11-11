@@ -72,6 +72,9 @@ void Radii_finalizer (Point * centers, int dimension, double* cluster_radii, int
                 printf("Error in i= %d and j=%d\n",i,j);
             }
         }
+        for(int i=0; i<clusters; ++i){
+           printf("percentages-%d = %d\n", i+1, percentages[i]);
+        }
         int min= minimum(cluster_dist);
         int x= percentages[i];
         int y= percentages[min];
@@ -83,8 +86,6 @@ void Radii_finalizer (Point * centers, int dimension, double* cluster_radii, int
 }
 
 void generate_centers(Point *centers, int dimensions){
-
-    srand(time(NULL));
 
     // allocating memory for the data center
     double * data_center = malloc(dimensions * sizeof(double));
@@ -185,11 +186,98 @@ void generate_points(Point *centers, double *radii, int *percentages, int dimens
     printf("Data successfully written to cluster_data.csv\n");
 }
 
+int Generate_test_data(Point * centers, double * radii,int dimensions, int test){
+    FILE *fptr = fopen("test_data.csv", "w");
+    if (fptr == NULL) {
+        printf("Error opening file!\n");
+        return 0;
+    }
+    fprintf(fptr, "\n");
+    int counter=0;
+    for(int i=0; i< clusters; ++i){
+        fprintf(fptr, "Cluster-%d", i + 1);
+
+        // Generate point coordinates within the radius
+        for (int d = 0; d < dimensions; d++){
+            double coordinate = centers[i].coordinates[d];
+            fprintf(fptr, ",%lf", coordinate);
+        }
+        fprintf(fptr,"\n");
+        counter++;
+    }
+    fprintf(fptr, "sattar");
+    for(int i=0; i<clusters; ++i){
+        fprintf(fptr, ",%f",(double)9999);
+    }
+    fprintf(fptr, "\n");
+//-------------------------------------------------------------------------//
+    for(int i=0; i< clusters; ++i){
+        for(int j=i+1; j<clusters; ++j){
+            double ri = radii[i];
+            double rj = radii[j];
+            double coordinate[dimensions];
+            for(int k=0; k<dimensions; ++k ){
+                coordinate[k] = (rj*centers[i].coordinates[k] + ri*centers[j].coordinates[k])/(rj+ri);
+            }
+            double center_distances[dimensions];
+            for(int k=0; k<clusters; ++k){
+                center_distances[k]= distance(coordinate, centers[k].coordinates, dimensions);
+            }
+            int cluster_id= minimum(center_distances);
+            fprintf(fptr, "Cluster-%d", cluster_id + 1);
+
+            for (int d = 0; d < dimensions; d++){
+                fprintf(fptr, ",%lf", coordinate[d]);
+            }
+            fprintf(fptr,"\n");
+            counter++;
+        }
+    }
+    fprintf(fptr, "sattar");
+    for(int i=0; i<clusters; ++i){
+        fprintf(fptr, ",%f", (double)9999);
+    }
+    fprintf(fptr, "\n");
+//--------------------------------------------------------------------------//
+
+    double offset[dimensions];
+
+    for(int j = 0; j < dimensions; j++){
+        offset[j] = ((rand() % 200) - 100) / 10.0;  // Generate random offset for the centers
+    }
+
+    // getting the divider to generate direction cosine
+    double divider = Direction_cosine(offset, dimensions);
+    
+    for(int j = 0; j < dimensions; j++){
+        offset[j] = (offset[j] / divider);  // making the random offset direction cosines and then multiplying it by radius 
+    }
+
+    for(int i=0; i<clusters; ++i){
+        for(int j=1; j<=test; ++j){
+            fprintf(fptr, "Cluster-%d", i+1);
+            for(int k=0; k <dimensions; ++k){
+                double coordinates;
+                coordinates= centers[i].coordinates[k] + (offset[k]*radii[i]*j)/test;
+                fprintf(fptr, ",%f", coordinates);
+            }
+            if(!(i==clusters-1 && j==test )){
+                    fprintf(fptr, "\n");
+                }
+            counter++;
+        }
+    }
+    return counter;
+}
+
+
 
 int main() {
+    srand(time(NULL));
     int dimensions;
     double radii[clusters];
     int percentage_distribution[clusters];
+    int test;
 
     printf("Enter the number of dimensions for the clusters: ");
     scanf("%d", &dimensions);
@@ -197,8 +285,11 @@ int main() {
     scanf("%d", &N);
     printf("Enter the number of clusters: ");
     scanf("%d", &clusters);
-    
+    printf("Enter the no. of test points: ");
+    scanf("%d", &test);
 
+    
+    printf("clusters= %d\n", clusters);
     // Allocate memory for centers
     Point centers[clusters];
 
@@ -224,11 +315,15 @@ int main() {
     }
     Radii_finalizer(centers,dimensions,radii, percentage_distribution);
     char input;
+    printf("dimension = %d\n", dimensions);
     printf("Do you want to generate the data and write it to the CSV file?, if yes enter 'y': ");
     scanf(" %c", &input);
     if(input == 'y' || input == 'Y'){
         // Generate points and write to CSV
         generate_points(centers, radii, percentage_distribution, dimensions);
+        int counter=0;
+        counter = Generate_test_data(centers, radii, dimensions, test);
+        printf("counter = %d\n", counter);
     }
     
     // Free memory for centers

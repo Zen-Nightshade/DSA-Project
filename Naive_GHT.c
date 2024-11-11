@@ -682,6 +682,166 @@ int sum_of_balance_factor(node * root){
     return bf+sumr+suml;
 }
 
+char* determine_cluster(node* leaf_node) {
+
+    if (!leaf_node || !leaf_node->data_chain) {
+        return NULL;
+    }
+
+    data_point* current_point = leaf_node->data_chain;
+
+    char* common_cluster = current_point->cluster;
+    int max_count = 0;
+
+    while (current_point) {
+        int count = 0;
+        data_point* point = leaf_node->data_chain;
+        while (point) {
+            if (strcmp(current_point->cluster,point->cluster)==0) {
+                count++;
+            }
+            point = point->next;
+        }
+        if (count > max_count) {
+            max_count = count;
+            common_cluster = current_point->cluster;
+        }
+        current_point = current_point->next;
+    }
+    return common_cluster;
+}
+int Insert_new_point(node* root, data_point* new_point) {
+
+    if (!root || !new_point) {
+        return false;
+    }
+    node* current_node = root;
+
+    while (current_node->left_node && current_node->right_node) {
+        if(Distance(new_point, current_node->pivot_1) > Distance(new_point, current_node->pivot_2)){
+            current_node = current_node->left_node;
+            current_node->count++;
+        }
+        else if(Distance(new_point, current_node->pivot_1) < Distance(new_point, current_node->pivot_2)){
+            current_node = current_node->right_node;
+            current_node->count++;
+        }
+        else{
+            current_node->equal_count++;
+            if(current_node->equal_count%2){
+                current_node = current_node->left_node;
+                current_node->count++;
+            }
+            else{
+                current_node = current_node->right_node;
+                current_node->count++;
+            }
+        }
+    }
+    char* assigned_cluster = determine_cluster(current_node);
+    // printf("cluster = %s and assigned = %s\n", new_point->cluster, assigned_cluster);
+    if (assigned_cluster != NULL) {
+        if(!(strcmp(new_point->cluster,assigned_cluster)==0)){
+            return 2;
+        }
+    }
+
+    if (!Insert_point(current_node, new_point)) {
+        return false;
+    }
+    current_node->count++;
+
+    if (current_node->count > 2 * K) {
+        return Tree_Construct(current_node);
+    }
+    return true;
+}
+
+double* Accuracy(node * root){
+    FILE *fptr = fopen("test_data.csv","r");
+
+    if(fptr == NULL){
+        printf("ERROR occured in opening the file\n");
+
+        return false;
+    }
+    int counter=0;
+    int positive[3]={0};
+    int negative[3]={0};
+    int n=0;
+    while(!feof(fptr)){
+        //initilaizing the read variable to measure the number of inputs read
+        int read=0;
+
+        data_point * new_point = Create_point();
+
+        //reading the cluster name
+        read = fscanf(fptr, "%49[^,]", new_point->cluster);
+
+        if( read != 1){
+            printf("cluster not read\n");
+
+            return false;
+        }
+        if((strcmp(new_point->cluster,"\nsattar")==0)){
+            n ++;
+            printf("read sattar\n");
+            double buffer[dimension];
+            read=0;
+            for(int i=0; i<dimension; ++i){
+                read += fscanf(fptr, ",%lf", &buffer[i]);
+                // printf("array[%d]= %f\n",i,buffer[i]);
+            }
+            if(read != dimension){
+                printf("ERROR-1: complete data has not been read or file format incorrect\n");
+                return false;
+            }
+            free(new_point);
+            continue;
+        }
+        read=0; // reinitializing read to measure the number of dimensions read
+
+        for(int i=0; i<dimension; ++i){
+            read += fscanf(fptr, ",%lf", &new_point->array[i]);
+        }
+        
+        if(read != dimension){
+            printf("ERROR: complete data has not been read or file format incorrect\n");
+
+            free(new_point);
+            return false;
+        }
+
+        read = Insert_new_point(root, new_point);
+        if(read == 1){
+            positive[n] ++;
+            // printf("Yes!!!,%d \n", positive[n]);
+            counter++;
+        }
+        else if(read == 2){
+            negative[n] ++;
+            // printf("NO!!!\n");
+            counter++;
+        }
+        else{
+            printf("Error occured\n");
+        }
+    }
+    double *accuracy = (double *)malloc(3*sizeof(double));
+    int counts[3];
+    counts[0] = positive[0] +negative[0];
+    counts[1] = positive[1] +negative[1];
+    counts[2] = positive[2] +negative[2];
+    printf("positive-3 = %d\n",positive[2]);
+    printf("counter = %d,\n count-1 = %d,\n count-2 = %d,\n count-3 = %d,\n", counter, counts[0],counts[1],counts[2]);
+    if(counter == counts[0] + counts[1] + counts[2]){
+        for(int i=0; i<3; ++i){
+            accuracy[i] = ((double) positive[i]/counts[i])*100;   
+        }
+    }
+
+    return accuracy;
+}
 
 int main(){
     
@@ -720,7 +880,12 @@ int main(){
     double std_split3 = sqrt(var_split3);
     printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_split3, std_split3);
     
-    
+    double* accuracy= Accuracy(root);
+    for(int i=0; i<3;++i){
+        printf("Test-%d data accuracy = %f\n", i+1, accuracy[i]);
+    }
+    free(accuracy);
+
     check = Display_Naive_Tree(root);
     if(check == 1){
         printf("printed to the file\n");
