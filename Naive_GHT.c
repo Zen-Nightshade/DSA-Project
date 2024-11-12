@@ -5,7 +5,7 @@
 #include<stdbool.h>
 #include<string.h>
 
-#define dimension 3
+#define dimension 20
 #define K 50
 #define and &&
 #define or ||
@@ -142,9 +142,7 @@ bool Insert_data(node * root){
     if (fgets(buffer, sizeof(buffer), fptr) == NULL){
 
         printf("File is empty or error reading first line.\n");
-
         fclose(fptr);
-
         return false;
     }
 
@@ -152,33 +150,54 @@ bool Insert_data(node * root){
     data_point *point= Create_point();
 
     int read = fscanf(fptr, "%49[^,]", point->cluster);
+    // printf("%s\n",point->cluster);
+    if( read != 1){
+        printf("cluster-1 not read\n");
+        fclose(fptr);
+        free(point);
+        return false;
+    }
+    // printf("%s\n", point->cluster);
 
-        if( read != 1){
-            printf("cluster-1 not read\n");
-
-            return false;
+    for(int i=0; i<dimension; ++i){
+        read += fscanf(fptr, ",%lf", &point->array[i]);
+    }
+    if (read != dimension + 1){
+        for(int i=0; i<dimension-1;++i){
+            printf("%f, ",point->array[i]);
         }
+        printf("%f\n",point->array[dimension-1]);
+        printf("ERROR-1: complete data has not been read or file format incorrect\n");
+        fclose(fptr);
+        free(point);
+        return false;
+    }
 
-        for(int i=0; i<dimension; ++i){
-            fscanf(fptr, ",%lf", &point->array[i]);
-        }
     // assigning the first point to the data chain
     root->data_chain = point;
     root->count++;   
 
-    while(!feof(fptr)){
+    while(true){
         //initilaizing the read variable to measure the number of inputs read
         read=0;
 
         data_point * new_point = Create_point();
 
         //reading the cluster name
-        int read = fscanf(fptr, "%49[^,]", new_point->cluster);
+        int read = fscanf(fptr, "\n%49[^,]", new_point->cluster);
+        // printf("%s\n",point->cluster);
 
-        if( read != 1){
-            printf("cluster not read\n");
-
-            return false;
+        if (read != 1) {
+            if (feof(fptr)){
+                break;
+            } 
+            else{
+                printf("cluster-11 not read\n");
+                fclose(fptr);
+                free(point);
+                free(new_point);
+                return false;
+            }
         }
         read=0; // reinitializing read to measure the number of dimensions read
 
@@ -188,7 +207,9 @@ bool Insert_data(node * root){
         
         if(read != dimension){
             printf("ERROR: complete data has not been read or file format incorrect\n");
-
+            fclose(fptr);
+            free(point);
+            free(new_point);
             return false;
         }
 
@@ -200,7 +221,7 @@ bool Insert_data(node * root){
 
         point = new_point;
     }
-    
+    fclose(fptr);
     return true;
 }
 
@@ -308,7 +329,6 @@ double absolute( double x){
                                                 // Function to construct the Tree in a recurcive manner
 
 bool Tree_Construct(node* root){
-
     if(root == NULL){
         printf("ERROR: NULL root given to Tree Constructor\n");
         return false;
@@ -717,42 +737,54 @@ int Insert_new_point(node* root, data_point* new_point) {
     }
     node* current_node = root;
 
-    while (current_node->left_node && current_node->right_node) {
+    while ((current_node->left_node != NULL) && (current_node->right_node != NULL)){
         if(Distance(new_point, current_node->pivot_1) > Distance(new_point, current_node->pivot_2)){
-            current_node = current_node->left_node;
             current_node->count++;
+            current_node = current_node->left_node;
         }
         else if(Distance(new_point, current_node->pivot_1) < Distance(new_point, current_node->pivot_2)){
-            current_node = current_node->right_node;
             current_node->count++;
+            current_node = current_node->right_node;
         }
         else{
             current_node->equal_count++;
             if(current_node->equal_count%2){
-                current_node = current_node->left_node;
                 current_node->count++;
+                current_node = current_node->left_node;
             }
             else{
-                current_node = current_node->right_node;
                 current_node->count++;
+                current_node = current_node->right_node;
             }
         }
     }
+    int return_value=0;
     char* assigned_cluster = determine_cluster(current_node);
     // printf("cluster = %s and assigned = %s\n", new_point->cluster, assigned_cluster);
-    if (assigned_cluster != NULL) {
-        if(!(strcmp(new_point->cluster,assigned_cluster)==0)){
-            return 2;
-        }
-    }
 
-    if (!Insert_point(current_node, new_point)) {
+    if(!Insert_point(current_node, new_point)){
         return false;
     }
     current_node->count++;
 
-    if (current_node->count > 2 * K) {
-        return Tree_Construct(current_node);
+    if(assigned_cluster != NULL){
+        if(!(strcmp(new_point->cluster,assigned_cluster)==0)){
+            if(current_node->count > 2 * K){
+            int read= Tree_Construct(current_node);
+            if(read!=1){
+                printf("construction went wrong at 1\n");
+            }
+    }
+            // printf("Assign= %s, found= %s ",assigned_cluster, new_point->cluster);
+            return 2;
+        }
+    }
+
+    if(current_node->count > 2 * K){
+        int read= Tree_Construct(current_node);
+        if(read!=1){
+            printf("construction went wrong at 1\n");
+        }
     }
     return true;
 }
@@ -769,23 +801,29 @@ double* Accuracy(node * root){
     int positive[3]={0};
     int negative[3]={0};
     int n=0;
-    while(!feof(fptr)){
+
+    for(int q=0;!feof(fptr);++q){
         //initilaizing the read variable to measure the number of inputs read
         int read=0;
 
         data_point * new_point = Create_point();
 
         //reading the cluster name
-        read = fscanf(fptr, "%49[^,]", new_point->cluster);
+        if(q==0){
+            read = fscanf(fptr, "%49[^,]", new_point->cluster);
+        }
+        else{
+            read = fscanf(fptr, "\n%49[^,]", new_point->cluster);
+        }     
 
         if( read != 1){
-            printf("cluster not read\n");
+            printf("cluster-2 not read\n");
 
             return false;
         }
-        if((strcmp(new_point->cluster,"\nsattar")==0)){
+        if((strcmp(new_point->cluster,"sattar")==0)){
             n ++;
-            printf("read sattar\n");
+            // printf("read sattar\n");
             double buffer[dimension];
             read=0;
             for(int i=0; i<dimension; ++i){
@@ -820,6 +858,11 @@ double* Accuracy(node * root){
         }
         else if(read == 2){
             negative[n] ++;
+            // printf("n=%d, ",n);
+            // for(int j=0; j<dimension; ++j){
+            //     printf("%f, ",new_point->array[j]);
+            // }
+            // printf("\n");
             // printf("NO!!!\n");
             counter++;
         }
@@ -832,8 +875,8 @@ double* Accuracy(node * root){
     counts[0] = positive[0] +negative[0];
     counts[1] = positive[1] +negative[1];
     counts[2] = positive[2] +negative[2];
-    printf("positive-3 = %d\n",positive[2]);
-    printf("counter = %d,\n count-1 = %d,\n count-2 = %d,\n count-3 = %d,\n", counter, counts[0],counts[1],counts[2]);
+    // printf("positive-3 = %d\n",positive[2]);
+    // printf("counter = %d,\n count-1 = %d,\n count-2 = %d,\n count-3 = %d,\n", counter, counts[0],counts[1],counts[2]);
     if(counter == counts[0] + counts[1] + counts[2]){
         for(int i=0; i<3; ++i){
             accuracy[i] = ((double) positive[i]/counts[i])*100;   
@@ -854,9 +897,10 @@ int main(){
     if(!check){
         return 0;
     }
+    Tree_Construct(root);
+    double* accuracy= Accuracy(root);
     printf("root count = %d\n", root->count);
 
-    Tree_Construct(root);
 
     int h = height_of_tree(root);
     printf("Height = %d\n", h-1);
@@ -880,7 +924,6 @@ int main(){
     double std_split3 = sqrt(var_split3);
     printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_split3, std_split3);
     
-    double* accuracy= Accuracy(root);
     for(int i=0; i<3;++i){
         printf("Test-%d data accuracy = %f\n", i+1, accuracy[i]);
     }
