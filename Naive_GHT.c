@@ -5,7 +5,7 @@
 #include<stdbool.h>
 #include<string.h>
 
-#define dimension 20
+#define dimension 30
 #define K 50
 #define and &&
 #define or ||
@@ -136,12 +136,9 @@ bool Insert_data(node * root){
         return false;
     }
 
-    char buffer[500];  // Buffer to store the first line
-
-    // reading and ignoring the first line
-    if (fgets(buffer, sizeof(buffer), fptr) == NULL){
-
-        printf("File is empty or error reading first line.\n");
+    int read = fscanf(fptr, "%*[^\n]\n");
+    if (read != 0) {
+        printf("Error skipping the first line.\n");
         fclose(fptr);
         return false;
     }
@@ -149,7 +146,7 @@ bool Insert_data(node * root){
     // Creating a data point to read and store the first point
     data_point *point= Create_point();
 
-    int read = fscanf(fptr, "%49[^,]", point->cluster);
+    read = fscanf(fptr, "%49[^,]", point->cluster);
     // printf("%s\n",point->cluster);
     if( read != 1){
         printf("cluster-1 not read\n");

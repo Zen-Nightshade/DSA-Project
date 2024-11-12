@@ -173,26 +173,26 @@ for z in range(99):
 x = range(len(Naive_Height))  # Match the x-axis length with the data lists
 
 # Plot Naive data with solid lines
-# plt.plot(x, Naive_Height, color='red', linestyle='-', label='Naive Height')
+plt.plot(x, Naive_Height, color='red', linestyle='-', label='Naive Height')
 # plt.plot(x, Naive_Nodes, color='blue', linestyle='-', label='Naive No. of nodes')
 # plt.plot(x, Naive_Leaves, color='green', linestyle='-', label='Naive No. of leaves')
 # plt.plot(x, Naive_Leaf_size_avg, color='purple', linestyle='-', label='Naive Avg leaf size')
 # plt.plot(x, Naive_Leaf_size_std, color='orange', linestyle='-', label='Naive Std of leaf size')
-plt.plot(x, Naive_Split_2_avg, color='cyan', linestyle='-', label='Naive Avg Split-2')
-plt.plot(x, Naive_Split_2_std, color='magenta', linestyle='-', label='Naive Std Split-2')
-plt.plot(x, Naive_Split_3_avg, color='brown', linestyle='-', label='Naive Avg Split-3')
-plt.plot(x, Naive_Split_3_std, color='grey', linestyle='-', label='Naive Std Split-3')
+# plt.plot(x, Naive_Split_2_avg, color='cyan', linestyle='-', label='Naive Avg Split-2')
+# plt.plot(x, Naive_Split_2_std, color='magenta', linestyle='-', label='Naive Std Split-2')
+# plt.plot(x, Naive_Split_3_avg, color='brown', linestyle='-', label='Naive Avg Split-3')
+# plt.plot(x, Naive_Split_3_std, color='grey', linestyle='-', label='Naive Std Split-3')
 
 # Plot VarMed data with dashed lines
-# plt.plot(x, VarMed_Height, color='red', linestyle='--', label='VarMed Height')
+plt.plot(x, VarMed_Height, color='red', linestyle='--', label='VarMed Height')
 # plt.plot(x, VarMed_Nodes, color='blue', linestyle='--', label='VarMed No. of nodes')
 # plt.plot(x, VarMed_Leaves, color='green', linestyle='--', label='VarMed No. of leaves')
 # plt.plot(x, VarMed_Leaf_size_avg, color='purple', linestyle='--', label='VarMed Avg leaf size')
 # plt.plot(x, VarMed_Leaf_size_std, color='orange', linestyle='--', label='VarMed Std of leaf size')
-plt.plot(x, VarMed_Split_2_avg, color='cyan', linestyle='--', label='VarMed Avg Split-2')
-plt.plot(x, VarMed_Split_2_std, color='magenta', linestyle='--', label='VarMed Std Split-2')
-plt.plot(x, VarMed_Split_3_avg, color='brown', linestyle='--', label='VarMed Avg Split-3')
-plt.plot(x, VarMed_Split_3_std, color='grey', linestyle='--', label='VarMed Std Split-3')
+# plt.plot(x, VarMed_Split_2_avg, color='cyan', linestyle='--', label='VarMed Avg Split-2')
+# plt.plot(x, VarMed_Split_2_std, color='magenta', linestyle='--', label='VarMed Std Split-2')
+# plt.plot(x, VarMed_Split_3_avg, color='brown', linestyle='--', label='VarMed Avg Split-3')
+# plt.plot(x, VarMed_Split_3_std, color='grey', linestyle='--', label='VarMed Std Split-3')
 
 plt.axhline(y=0, color='black', linewidth=0.5)
 plt.axvline(x=0, color='black', linewidth=0.5)
