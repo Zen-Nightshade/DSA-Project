@@ -4,7 +4,7 @@
 #include<math.h>
 #include<stdbool.h>
 
-#define dimension 3
+#define dimension 38
 #define K 50
 #define and &&
 #define or ||
@@ -56,7 +56,7 @@ node * Create_node(){
     new_node->right_node=NULL;
     new_node->parent=NULL;
 
-    new_node->axis=0;
+    new_node->axis=-1;
     new_node->median=0;
 
     new_node->split_2quality= -1;
@@ -166,6 +166,7 @@ bool Insert_data(node * root){
 
             return false;
         }
+        printf("hello\n");
         read=0; // reinitializing read to measure the number of dimensions read
 
         for(int i=0; i<dimension; ++i){
@@ -173,6 +174,7 @@ bool Insert_data(node * root){
         }
         
         if(read != dimension){
+            printf("read=%d\n",read);
             printf("ERROR: complete data has not been read or file format incorrect\n");
 
             return false;
@@ -495,10 +497,10 @@ int Naive3=1;
 void node_info_printer(FILE *fptr, node* root){
 
     fprintf(fptr, "Axis : ");
-    
-    if(root->axis!=0){
+    // printf("axis: %d, median: %.2f\n",root->axis, root->median);
+    if(root->axis!=-1){
         
-        fprintf(fptr, "x%d= %lf", root->axis, root->median);
+        fprintf(fptr, "x%d= %lf", root->axis+1, root->median);
 
     }
     else{

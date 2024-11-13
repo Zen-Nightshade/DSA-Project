@@ -15,19 +15,42 @@ Split_2_std =[]
 
 Split_3_avg =[]
 Split_3_std =[]
-
 dimension =3
-N=1000
-clusters = 2
+N=10000
+clusters = 5
 input_data=''
-percentages = []
-for z in range(99):
-    percentages.clear()
-    percentages.append(z+1)
-    percentages.append(99-z)
+percentages = [20,20,20,20,20]
+
+filename = 'Naive_GHT.c'
+
+
+for z in range(91):
+    dimension = z+10
+    filename = 'VarMed_GHT.c'
+    old_dimesion = "dimension " + str(dimension-1)
+    new_dimension = "dimension " + str(dimension)
+
+    # Read the contents of the file
+    with open(filename, 'r') as file:
+        content = file.read()
+    if z==0:
+        content = content.replace("dimension 60", new_dimension, 1)
+    else:
+        content = content.replace(old_dimesion, new_dimension, 1)
+
+    with open(filename, 'w') as file:
+        file.write(content)
+    # percentages.clear()
+    # percentages.append(z+1)
+    # percentages.append(99-z)
     
     input_data=''
-    input_data += str(dimension)+'\n'+str(N)+'\n'+str(clusters)+'\n'+str(percentages[0])+'\n'+str(percentages[1])+'\n'+'Y\n'
+    input_data += str(dimension)+'\n'+str(N)+'\n'+str(clusters)+'\n'+str(20)+'\n'
+
+    for i in range(clusters):
+        input_data += str(percentages[i])+'\n'
+    input_data += 'Y\n'
+
 
     compile_generator= sub.run(['gcc', 'datapoint_generator.c', '-o', 'out','-lm'])
     run_generator= sub.run(['./out'], input= input_data.encode(), capture_output=True)
@@ -37,12 +60,15 @@ for z in range(99):
     compile_VarMed_Tree= sub.run(['gcc', 'VarMed_GHT.c', '-o', 'out','-lm'])
     run_VarMed_Tree= sub.run(['./out'], input= input_data.encode(), capture_output=True)
     output= run_VarMed_Tree.stdout.decode("utf-8")
-    
-    x= 27
+    # print(output)
+    x= 15
     while output[x] != '\n':
         x +=1
-
-    Height.append(int(output[27:x]))
+    y=x+10
+    x+=10
+    while output[x] != '\n':
+        x +=1
+    Height.append(int(output[y:x]))
 
     y=x+16
     x +=16
@@ -114,3 +140,6 @@ plt.axvline(x=0, color='black', linewidth=0.5)
 plt.xlabel('percentage distribution')
 plt.legend()
 plt.show()
+
+
+

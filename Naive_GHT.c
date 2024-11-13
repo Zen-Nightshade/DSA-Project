@@ -5,8 +5,8 @@
 #include<stdbool.h>
 #include<string.h>
 
-#define dimension 30
-#define K 50
+#define dimension 60
+#define K 100
 #define and &&
 #define or ||
 #define ll long long
@@ -854,6 +854,12 @@ double* Accuracy(node * root){
             counter++;
         }
         else if(read == 2){
+            // if(n==1){
+            //     for(int x=0;x<dimension-1;++x){
+            //         printf("%f, ",new_point->array[x]);
+            //     }
+            //     printf("%f\n", new_point->array[dimension-1]);
+            // }
             negative[n] ++;
             // printf("n=%d, ",n);
             // for(int j=0; j<dimension; ++j){
@@ -872,7 +878,7 @@ double* Accuracy(node * root){
     counts[0] = positive[0] +negative[0];
     counts[1] = positive[1] +negative[1];
     counts[2] = positive[2] +negative[2];
-    // printf("positive-3 = %d\n",positive[2]);
+    // printf("positive-2 = %d, negative= %d\n",positive[1], negative[1]);
     // printf("counter = %d,\n count-1 = %d,\n count-2 = %d,\n count-3 = %d,\n", counter, counts[0],counts[1],counts[2]);
     if(counter == counts[0] + counts[1] + counts[2]){
         for(int i=0; i<3; ++i){

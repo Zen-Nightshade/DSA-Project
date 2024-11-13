@@ -79,7 +79,7 @@ void Radii_finalizer (Point * centers, int dimension, double* cluster_radii, int
         int min= minimum(cluster_dist);
         // int x= percentages[i];
         // int y= percentages[min];
-        cluster_radii[i]= (cluster_dist[min])/2;
+        cluster_radii[i]= (cluster_dist[min])/10;
         printf("clster-%d : radius = %lf with %% = %d\n", i, cluster_radii[i], percentages[i]);
 
     }

@@ -21,15 +21,18 @@ A2=[]
 A3=[]
 
 dimension =3
-N=100000
-clusters = 5
+N=10000
+clusters = 50
 input_data=''
-percentages = [20,20,20,20,20]
+percentages=[]
+for i in range(50):
+    percentages.append(2)
+
 
 filename = 'Naive_GHT.c'
 
 
-for z in range(21):
+for z in range(51):
     dimension = z+10
     filename = 'Naive_GHT.c'
     old_dimesion = "dimension " + str(dimension-1)
@@ -67,11 +70,14 @@ for z in range(21):
     run_Naive_Tree= sub.run(['./out'], input= input_data.encode(), capture_output=True)
     output= run_Naive_Tree.stdout.decode("utf-8")
     
-    x= 30
+    x= 15
     while output[x] != '\n':
         x +=1
-
-    Height.append(int(output[30:x]))
+    y=x+10
+    x+=10
+    while output[x] != '\n':
+        x +=1
+    Height.append(int(output[y:x]))
 
     y=x+16
     x +=16
@@ -147,21 +153,25 @@ x = range(10, 10 + len(Height))  # Match the x-axis length with the data lists
 
 # plt.plot(x, Height, color='red', label='Height')
 # plt.plot(x, Nodes, color='blue', label='No. of nodes')
-# plt.plot(x, Leaves, color='green', label='No. of leaves')
+plt.plot(x, Leaves, color='green', label='No. of leaves')
 # plt.plot(x, Leaf_size_avg, color='purple', label='Avg leaf size')
 # plt.plot(x, Leaf_size_std, color='orange', label='Std of leaf size')
 # plt.plot(x, Split_2_avg, color='cyan', label='Avg Split-2')
 # plt.plot(x, Split_2_std, color='magenta', label='Std Split-2')
 # plt.plot(x, Split_3_avg, color='brown', label='Avg Split-3')
 # plt.plot(x, Split_3_std, color='darkgrey', label='Std Split-3')
-plt.plot(x, A1, color='darkviolet', label='Test-1 Accuracy')  # Dark Violet for A1
-plt.plot(x, A2, color='orangeRed', label='Test-2 Accuracy')        # Gold for A2
+# plt.plot(x, A1, color='darkviolet', label='Test-1 Accuracy')  # Dark Violet for A1
+plt.plot(x, A2, color='orangeRed', label='Accuracy')        # Gold for A2
 plt.plot(x, A3, color='limegreen', label='Test-3 Accuracy')
 
 plt.axhline(y=0, color='black', linewidth=0.5)
 plt.axvline(x=0, color='black', linewidth=0.5)
-title= str(N)+"data points Accuracy"
+title= str(N)+" data points"
 plt.title(title)
 plt.xlabel('Dimension')
 plt.legend()
 plt.show()
+
+# root count = 10007
+# Height = 13
+# no. of nodes = 335
