@@ -3,9 +3,10 @@
 #include<time.h>
 #include<math.h>
 #include<stdbool.h>
+#include<string.h>
 
-#define dimension 38
-#define K 50
+#define dimension 3
+#define K 40
 #define and &&
 #define or ||
 #define ll long long
@@ -122,51 +123,66 @@ bool Insert_data(node * root){
         return false;
     }
 
-    char buffer[500];  // Buffer to store the first line
-
-    // reading and ignoring the first line
-    if (fgets(buffer, sizeof(buffer), fptr) == NULL){
-
-        printf("File is empty or error reading first line.\n");
-
+    int read = fscanf(fptr, "%*[^\n]\n");
+    if (read != 0) {
+        printf("Error skipping the first line.\n");
         fclose(fptr);
-
         return false;
     }
 
     // Creating a data point to read and store the first point
     data_point *point= Create_point();
 
-    int read = fscanf(fptr, "%49[^,]", point->cluster);
+    read = fscanf(fptr, "%49[^,]", point->cluster);
+    // printf("%s\n",point->cluster);
+    if( read != 1){
+        printf("cluster-1 not read\n");
+        fclose(fptr);
+        free(point);
+        return false;
+    }
+    // printf("%s\n", point->cluster);
 
-        if( read != 1){
-            printf("cluster-1 not read\n");
-
-            return false;
+    for(int i=0; i<dimension; ++i){
+        read += fscanf(fptr, ",%lf", &point->array[i]);
+    }
+    if (read != dimension + 1){
+        for(int i=0; i<dimension-1;++i){
+            printf("%f, ",point->array[i]);
         }
+        printf("%f\n",point->array[dimension-1]);
+        printf("ERROR-1: complete data has not been read or file format incorrect\n");
+        fclose(fptr);
+        free(point);
+        return false;
+    }
 
-        for(int i=0; i<dimension; ++i){
-            fscanf(fptr, ",%lf", &point->array[i]);
-        }
     // assigning the first point to the data chain
     root->data_chain = point;
     root->count++;   
 
-    while(!feof(fptr)){
+    while(true){
         //initilaizing the read variable to measure the number of inputs read
         read=0;
 
         data_point * new_point = Create_point();
 
         //reading the cluster name
-        int read = fscanf(fptr, "%49[^,]", new_point->cluster);
+        int read = fscanf(fptr, "\n%49[^,]", new_point->cluster);
+        // printf("%s\n",point->cluster);
 
-        if( read != 1){
-            printf("cluster not read\n");
-
-            return false;
+        if (read != 1) {
+            if (feof(fptr)){
+                break;
+            } 
+            else{
+                printf("cluster-11 not read\n");
+                fclose(fptr);
+                free(point);
+                free(new_point);
+                return false;
+            }
         }
-        printf("hello\n");
         read=0; // reinitializing read to measure the number of dimensions read
 
         for(int i=0; i<dimension; ++i){
@@ -174,9 +190,10 @@ bool Insert_data(node * root){
         }
         
         if(read != dimension){
-            printf("read=%d\n",read);
             printf("ERROR: complete data has not been read or file format incorrect\n");
-
+            fclose(fptr);
+            free(point);
+            free(new_point);
             return false;
         }
 
@@ -188,10 +205,9 @@ bool Insert_data(node * root){
 
         point = new_point;
     }
-    
+    fclose(fptr);
     return true;
 }
-
                                                 // Hyperplane Generato :)
 
                                             //for sorting
@@ -253,6 +269,7 @@ double return_median_and_others(int max_variance_dimension, node *new_node){
         dummy_point_2 = dummy_point_2->next;
     }
     qsort(temp_array, sizeof(temp_array)/sizeof(*temp_array),sizeof(*temp_array), comp);
+    
     if(total_number %2 == 0){
         return (temp_array[total_number/2 -1] + temp_array[total_number/2])/2;
     }
@@ -276,6 +293,16 @@ double absolute( double x){
     else{
         return -x;
     }
+}
+double Distance(data_point * p1, data_point * p2){
+    
+    double sum=0;
+
+    for(int i=0; i< dimension; ++i){
+
+        sum += (p1->array[i]-p2->array[i])*(p1->array[i]- p2->array[i]);
+    }
+    return sqrt(sum);
 }
 
 bool Tree_Construct(node* root){
@@ -628,6 +655,297 @@ int sum_of_balance_factor(node * root){
     return bf+sumr+suml;
 }
 
+char* determine_cluster(node* leaf_node) {
+
+    if (!leaf_node || !leaf_node->data_chain) {
+        return NULL;
+    }
+
+    data_point* current_point = leaf_node->data_chain;
+    char* common_cluster = current_point->cluster;
+    int max_count = 0;
+
+    while (current_point) {
+        int count = 0;
+        data_point* point = leaf_node->data_chain;
+        while (point) {
+            if (strcmp(current_point->cluster,point->cluster)==0) {
+                count++;
+            }
+            point = point->next;
+        }
+        if (count > max_count) {
+            max_count = count;
+            common_cluster = current_point->cluster;
+        }
+        current_point = current_point->next;
+    }
+    return common_cluster;
+}
+
+void distinct_clusters(data_point *data_chain, char ***list_ptr, int *counter_ptr) {
+
+    *list_ptr = (char **)malloc(sizeof(char *));
+    *counter_ptr = 1;
+    (*list_ptr)[0] = strdup(data_chain->cluster);
+
+
+    data_point *ptr = data_chain->next;
+    while (ptr) {
+        int found = 0;
+        for (int j = 0; j < *counter_ptr; ++j) {
+            if (strcmp((*list_ptr)[j], ptr->cluster) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            (*counter_ptr)++;
+            *list_ptr = realloc(*list_ptr, (*counter_ptr) * sizeof(char *));
+            (*list_ptr)[(*counter_ptr) - 1] = strdup(ptr->cluster);
+
+        }
+        ptr = ptr->next;
+    }
+}
+
+char * weighted_vote_determine_cluster(node * leaf_node, data_point * new_point){
+    double factors [leaf_node->count];
+
+    int size = leaf_node->count;
+
+    char **list = NULL;
+    int counter = 0;
+    distinct_clusters(leaf_node->data_chain, &list, &counter);
+    // double sum_num=0;
+    // double sum_den=0;
+    
+    data_point * ptr = leaf_node->data_chain;
+    int i=0;
+    
+    for (ptr = leaf_node->data_chain; ptr != NULL && i < size; ptr = ptr->next, ++i) {
+        double distance = Distance(ptr, new_point);
+        if (distance < 0) {
+            printf("Something went wrong in the new Cluster determiner\n");
+        }
+        factors[i] = 100 / (distance + 1);
+    }
+
+    double weighted_vote[counter];
+
+    for(int i =0; i<counter; ++i){
+        weighted_vote[i] = 0;
+        ptr = leaf_node->data_chain;
+        for(int j=0; j< leaf_node->count; ++j){
+            if(ptr != NULL){
+                if(strcmp(list[i], ptr->cluster) ==0 ){
+                    weighted_vote[i] += factors[j];
+                }
+                ptr = ptr->next;
+            }
+        }
+    }
+    double max_votes = weighted_vote[0];
+    char * most_freq_cluster = list[0];
+    for(int i =0; i<counter; ++i){
+        if(weighted_vote[i] > max_votes){
+            max_votes = weighted_vote[i];
+            most_freq_cluster = list[i];
+        }
+    }
+    char *result = strdup(most_freq_cluster);
+    
+    for (int i = 0; i < counter; ++i) {
+        free(list[i]);
+    }
+    free(list);
+    return result;
+
+}
+
+
+int Insert_new_point(node* root, data_point* new_point) {
+
+    if (!root || !new_point) {
+        return false;
+    }
+    node* current_node = root;
+    current_node-> count++;
+
+    while(current_node->left_node && current_node->right_node) {
+        int axis = current_node->axis;
+    
+        if(new_point->array[axis] < current_node->median){
+            current_node= current_node->left_node;
+        }
+        else if(new_point->array[axis] > current_node->median){
+            current_node = current_node->right_node;
+        }
+        else{
+            current_node->equal_count++;
+            if(current_node->equal_count%2){
+                current_node = current_node->left_node;
+            }
+            else{
+                current_node = current_node->right_node;
+            }
+        }
+    }
+
+    int return_value=0;
+    char* assigned_cluster = determine_cluster(current_node);
+    char* new_assigned_cluster = weighted_vote_determine_cluster(current_node, new_point);
+    // printf("cluster = %s and assigned = %s\n", new_point->cluster, assigned_cluster);
+
+    if(!Insert_point(current_node, new_point)){
+        return false;
+    }
+    current_node->count++;
+
+    assigned_cluster = new_assigned_cluster;
+
+    if(assigned_cluster != NULL){
+        if(!(strcmp(new_point->cluster, assigned_cluster)==0)){
+            if(current_node->count > 2 * K){
+            int read= Tree_Construct(current_node);
+            if(read!=1){
+                printf("construction went wrong at 1\n");
+            }
+            }
+            // printf("cluster = %s and assigned = %s, new assigned = %s\n", new_point->cluster, assigned_cluster, new_assigned_cluster);
+            // printf("Assign= %s, found= %s \n",assigned_cluster, new_point->cluster);
+            return 2;
+        }
+    }
+
+    if(current_node->count > 2 * K){
+        int read= Tree_Construct(current_node);
+        if(read!=1){
+            printf("construction went wrong at 1\n");
+        }
+    }
+    return true;
+}
+double* Accuracy(node * root){
+    FILE *fptr = fopen("test_data.csv","r");
+
+    if(fptr == NULL){
+        printf("ERROR occured in opening the file\n");
+
+        return false;
+    }
+
+    int counter=0;
+    int positive[3]={0};
+    int negative[3]={0};
+    int n=0;
+
+    for(int q=0;!feof(fptr);++q){
+        //initilaizing the read variable to measure the number of inputs read
+        int read=0;
+
+        data_point * new_point = Create_point();
+
+        //reading the cluster name
+        if(q==0){
+            read = fscanf(fptr, "%49[^,]", new_point->cluster);
+        }
+        else{
+            read = fscanf(fptr, "\n%49[^,]", new_point->cluster);
+        }     
+
+        if( read != 1){
+            printf("cluster-2 not read\n");
+            fclose(fptr);
+            return false;
+        }
+
+        if((strcmp(new_point->cluster,"sattar")==0)){
+            n ++;
+            // printf("read sattar\n");
+            double buffer[dimension];
+            read=0;
+            for(int i=0; i<dimension; ++i){
+                read += fscanf(fptr, ",%lf", &buffer[i]);
+                // printf("array[%d]= %f\n",i,buffer[i]);
+            }
+            if(read != dimension){
+                printf("ERROR-1: complete data has not been read or file format incorrect\n");
+                return false;
+            }
+            free(new_point);
+            continue;
+        }
+        read=0; // reinitializing read to measure the number of dimensions read
+
+        for(int i=0; i<dimension; ++i){
+            read += fscanf(fptr, ",%lf", &new_point->array[i]);
+        }
+        
+        if(read != dimension){
+            printf("ERROR: complete data has not been read or file format incorrect\n");
+
+            free(new_point);
+            return false;
+        }
+
+        read = Insert_new_point(root, new_point);
+        // printf("read = %d\n", read);
+        if(read == 1){
+            positive[n] ++;
+            // printf("Yes!!!,%d \n", positive[n]);
+            counter++;
+        }
+        else if(read == 2){
+            // if(n==1){
+            //     for(int x=0;x<dimension-1;++x){
+            //         printf("%f, ",new_point->array[x]);
+            //     }
+            //     printf("%f\n", new_point->array[dimension-1]);
+            // }
+            negative[n] ++;
+            // printf("n=%d, ",n);
+            // for(int j=0; j<dimension; ++j){
+            //     printf("%f, ",new_point->array[j]);
+            // }
+            // printf("\n");
+            // printf("NO!!!\n");
+            counter++;
+        }
+        else{
+            printf("Error occured\n");
+        }
+    }
+    double *accuracy = (double *)malloc(3*sizeof(double));
+    int counts[3];
+    counts[0] = positive[0] +negative[0];
+    counts[1] = positive[1] +negative[1];
+    counts[2] = positive[2] +negative[2];
+    // printf("positive-2 = %d, negative= %d\n",positive[1], negative[1]);
+    // printf("counter = %d,\n count-1 = %d,\n count-2 = %d,\n count-3 = %d,\n", counter, counts[0],counts[1],counts[2]);
+    if(counter == counts[0] + counts[1] + counts[2]){
+        for(int i=0; i<3; ++i){
+            accuracy[i] = ((double) positive[i]/counts[i])*100;   
+        }
+    }
+
+    return accuracy;
+}
+int jojo=1;
+void print_pivot(node * root, FILE* file){
+    if(root == NULL || root->left_node==NULL){
+        return;
+    }
+    if(root->left_node!=NULL){
+        fprintf(file, "%d,",jojo);
+        jojo++;
+        fprintf(file, "%d,%f\n",root->axis,root->median);
+
+        print_pivot(root->left_node, file);
+        print_pivot(root->right_node,file);
+
+    }
+}
 
 int main(){
     
@@ -640,9 +958,10 @@ int main(){
     if(!check){
         return 0;
     }
-    printf("root count = %d\n", root->count);
 
     Tree_Construct(root);
+    double* accuracy= Accuracy(root);
+    printf("root count = %d\n", root->count);
 
     int h = height_of_tree(root);
     printf("Height = %d\n", h-1);
@@ -666,6 +985,17 @@ int main(){
     double std_split3 = sqrt(var_split3);
     printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_split3, std_split3);
 
+     for(int i=0; i<3;++i){
+        printf("Test-%d data accuracy = %f\n", i+1, accuracy[i]);
+    }
+    free(accuracy);
+    FILE * file = fopen("VarMed_pivots.csv","w");
+    if(file != NULL){
+        print_pivot(root, file);
+    }
+    else{
+        printf("ERROR opening the file pivots.csv\n");
+    }
     check = Display_VarMed_Tree(root);
     if(check == 1){
         printf("printed to the file\n");

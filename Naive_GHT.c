@@ -5,8 +5,8 @@
 #include<stdbool.h>
 #include<string.h>
 
-#define dimension 60
-#define K 100
+#define dimension 3
+#define K 40
 #define and &&
 #define or ||
 #define ll long long
@@ -88,7 +88,7 @@ data_point * Create_point(){
     return new_point;
 }
 
-                                                // Defining the function find the Eucledean distance
+                                                // Defining the function to find the Eucledean distance
 
 double Distance(data_point * p1, data_point * p2){
     
@@ -121,7 +121,7 @@ bool Insert_point(node * child, data_point* point){
     return true;
 }
 
-                                                // Function to insert the data into the root at the begining
+                                                // Function to insert the multiple data points into the root, while constructing the tree
 
 bool Insert_data(node * root){
 
@@ -226,7 +226,7 @@ bool Insert_data(node * root){
 
 bool Hyperplane_Generator (node * root){
     
-    srand(time(NULL));
+    srand(100);
 
     // If root is NULL
     if(root == NULL){
@@ -547,8 +547,13 @@ void Free_tree(node *root){
 int Naive1=1;
 int Naive2=1;
 int Naive3=1;
+int jojojo=1;
 
 void node_info_printer(FILE *fptr, node* root){
+    if(root->pivot_1!=NULL){
+        fprintf(fptr, "node-%d <br>",jojojo);
+        jojojo++;
+    }
 
     fprintf(fptr, "p%d : ", Naive2);
     
@@ -727,53 +732,174 @@ char* determine_cluster(node* leaf_node) {
     }
     return common_cluster;
 }
+
+int string_size(char * string){
+    int i=0;
+    while(string[i] != '\0'){
+        ++i;
+    }
+    return i+1;
+}
+void string_copy (char *string, char * source){
+    int c=0;
+    while(source[c] != '\0'){
+        string[c] = source[c];
+        c++;
+    }
+    string[c]= '\0';
+    return;
+}
+int n_distinct_clusters( data_point * data_chain, int size){
+    if(data_chain == NULL){
+        return 0;
+    }
+    // int len = string_size(data_chain->cluster);
+
+    char ** list= (char **)malloc(sizeof(char*));
+    list[0] = data_chain->cluster;
+    // list[0] = data_chain->cluster;
+
+    int counter = 1;
+    data_point * ptr = data_chain->next;
+    while(ptr != NULL){
+        for(int j=0; j<counter; ++j){
+            if(strcmp(list[j], ptr->cluster) !=0 ){
+                counter++;
+                // len += string_size(ptr->cluster);
+                list= realloc(list, counter* sizeof(char *));
+                list[counter-1] =  ptr->cluster;
+                break;
+            }
+        }
+    }
+    return counter;
+}
+
+void distinct_clusters(data_point *data_chain, char ***list_ptr, int *counter_ptr) {
+
+    *list_ptr = (char **)malloc(sizeof(char *));
+    *counter_ptr = 1;
+    (*list_ptr)[0] = strdup(data_chain->cluster);
+
+
+    data_point *ptr = data_chain->next;
+    while (ptr) {
+        int found = 0;
+        for (int j = 0; j < *counter_ptr; ++j) {
+            if (strcmp((*list_ptr)[j], ptr->cluster) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            (*counter_ptr)++;
+            *list_ptr = realloc(*list_ptr, (*counter_ptr) * sizeof(char *));
+            (*list_ptr)[(*counter_ptr) - 1] = strdup(ptr->cluster);
+
+        }
+        ptr = ptr->next;
+    }
+}
+
+char * weighted_vote_determine_cluster(node * leaf_node, data_point * new_point){
+    double factors [leaf_node->count];
+
+    int size = leaf_node->count;
+
+    char **list = NULL;
+    int counter = 0;
+    distinct_clusters(leaf_node->data_chain, &list, &counter);
+    // double sum_num=0;
+    // double sum_den=0;
+    
+    data_point * ptr = leaf_node->data_chain;
+    int i=0;
+    
+    for (ptr = leaf_node->data_chain; ptr != NULL && i < size; ptr = ptr->next, ++i) {
+        double distance = Distance(ptr, new_point);
+        if (distance < 0) {
+            printf("Something went wrong in the new Cluster determiner\n");
+        }
+        factors[i] = 100 / (distance + 1);
+    }
+
+    double weighted_vote[counter];
+
+    for(int i =0; i<counter; ++i){
+        weighted_vote[i] = 0;
+        ptr = leaf_node->data_chain;
+        for(int j=0; j< leaf_node->count; ++j){
+            if(ptr != NULL){
+                if(strcmp(list[i], ptr->cluster) ==0 ){
+                    weighted_vote[i] += factors[j];
+                }
+                ptr = ptr->next;
+            }
+        }
+    }
+    double max_votes = weighted_vote[0];
+    char * most_freq_cluster = list[0];
+    for(int i =0; i<counter; ++i){
+        if(weighted_vote[i] > max_votes){
+            max_votes = weighted_vote[i];
+            most_freq_cluster = list[i];
+        }
+    }
+    char *result = strdup(most_freq_cluster);
+    
+    for (int i = 0; i < counter; ++i) {
+        free(list[i]);
+    }
+    free(list);
+    return result;
+
+}
 int Insert_new_point(node* root, data_point* new_point) {
+    // printf("hello world\n");
 
     if (!root || !new_point) {
         return false;
     }
     node* current_node = root;
+    current_node->count++;
 
     while ((current_node->left_node != NULL) && (current_node->right_node != NULL)){
         if(Distance(new_point, current_node->pivot_1) > Distance(new_point, current_node->pivot_2)){
-            current_node->count++;
             current_node = current_node->left_node;
         }
         else if(Distance(new_point, current_node->pivot_1) < Distance(new_point, current_node->pivot_2)){
-            current_node->count++;
             current_node = current_node->right_node;
         }
         else{
             current_node->equal_count++;
             if(current_node->equal_count%2){
-                current_node->count++;
                 current_node = current_node->left_node;
             }
             else{
-                current_node->count++;
                 current_node = current_node->right_node;
             }
         }
     }
     int return_value=0;
     char* assigned_cluster = determine_cluster(current_node);
-    // printf("cluster = %s and assigned = %s\n", new_point->cluster, assigned_cluster);
+    char* new_assigned_cluster = weighted_vote_determine_cluster(current_node, new_point);
 
     if(!Insert_point(current_node, new_point)){
         return false;
     }
     current_node->count++;
 
-    if(assigned_cluster != NULL){
-        if(!(strcmp(new_point->cluster,assigned_cluster)==0)){
+    if(new_assigned_cluster != NULL){
+        if(!(strcmp(new_point->cluster, new_assigned_cluster)==0)){
             if(current_node->count > 2 * K){
-            int read= Tree_Construct(current_node);
-            if(read!=1){
-                printf("construction went wrong at 1\n");
+                int read= Tree_Construct(current_node);
+                if(read!=1){
+                    printf("construction went wrong at 1\n");
+                }
             }
-    }
+        // printf("cluster = %s and assigned = %s, new assigned = %s\n", new_point->cluster, assigned_cluster, new_assigned_cluster);
             // printf("Assign= %s, found= %s ",assigned_cluster, new_point->cluster);
-            return 2;
+        return 2;
         }
     }
 
@@ -888,56 +1014,145 @@ double* Accuracy(node * root){
 
     return accuracy;
 }
+int jojo=1;
+void print_pivot(node * root, FILE* file){
+    if(root == NULL || root->left_node==NULL){
+        return;
+    }
+    if(root->left_node!=NULL){
+        fprintf(file, "%d,",jojo);
+        jojo++;
+        for(int i=0; i<dimension;++i){
+            fprintf(file,"%f,",root->pivot_1->array[i]);
+        }
+        for(int i=0; i<dimension-1;++i){
+            fprintf(file,"%f,",root->pivot_2->array[i]);
+        }
+        fprintf(file, "%f\n", root->pivot_2->array[dimension-1]);
+
+        print_pivot(root->left_node, file);
+        print_pivot(root->right_node,file);
+
+    }
+}
 
 int main(){
-    
-    node * root = Create_node();
+    clock_t start, end;
+    double cpu_time_used;
+
+    start = clock();
 
     bool check;
+    int n=1;
+    int h=0;
+    double avg_average_leaf_size=0;
+    double avg_std_dev_leaf =0;
+    double avg_avg_split2 =0;
+    double avg_std_split2 =0;
+    double avg_avg_split3 =0;
+    double avg_std_split3=0;
+    double avg_aim[3]={0,0,0};
+    int count=0;
+    int num_nodes =0;
+    int num_leaves=0;
 
-    check = Insert_data(root);
+    for(int i=0; i<n;++i){
+        node * root = Create_node();
 
-    if(!check){
-        return 0;
+        check = Insert_data(root);
+        if(!check){
+            return 0;
+        }
+        Tree_Construct(root);
+        double* accuracy= Accuracy(root);
+        
+        count += root->count;
+        for(int a=0; a<3; ++a){
+            avg_aim[a] += accuracy[a];
+        }
+
+        h += height_of_tree(root);
+
+        double average_leaf_size = (double)root->count/count_leaf;
+        double variance_leaf = (double)(sum2_leaf)/count_leaf - (average_leaf_size)*(average_leaf_size);
+        double std_dev_leaf = sqrt(variance_leaf);
+
+        avg_average_leaf_size += average_leaf_size;
+        avg_std_dev_leaf += std_dev_leaf;
+
+        double avg_split2 = split2_sum1/count_nodes;
+        double var_split2 = split2_sum2/count_nodes - avg_split2*avg_split2;
+        double std_split2 = sqrt(var_split2);
+
+        avg_avg_split2 += avg_split2;
+        avg_std_split2 += std_split2;
+
+        double avg_split3 = split3_sum1/count_nodes;
+        double var_split3 = split3_sum2/count_nodes - avg_split3*avg_split3;
+        double std_split3 = sqrt(var_split3);
+
+        avg_avg_split3 += avg_split3;
+        avg_std_split3 += std_split3;
+
+        num_nodes += count_nodes+1;
+        num_leaves += count_leaf;
+
+        free(accuracy);
+
+        FILE * file = fopen("Naive_pivots.csv","w");
+        if(file != NULL){
+            print_pivot(root, file);
+            fclose(file);
+        }
+        else{
+            printf("ERROR opening the file pivots.csv\n");
+        }
+        check = Display_Naive_Tree(root);
+        Free_tree(root);
+        count_nodes=0;
+        count_leaf=0;
+        sum2_leaf=0;
+        split2_sum1=0;
+        split3_sum1=0;
+        split2_sum2=0;
+        split3_sum2=0;
     }
-    Tree_Construct(root);
-    double* accuracy= Accuracy(root);
-    printf("root count = %d\n", root->count);
+    for(int a=0; a<3; ++a){
 
+        avg_aim[a] /= n;
+    }
+    num_leaves /=n;
+    num_nodes /=n;
+    count /= n;
+    h /=n;
+    avg_average_leaf_size /=n;
+    avg_std_dev_leaf /=n;
+    avg_avg_split2 /= n;
+    avg_std_split2 /= n;
+    avg_avg_split3 /= n;
+    avg_std_split3 /= n;
 
-    int h = height_of_tree(root);
-    printf("Height = %d\n", h-1);
+    printf("root count = %d\n", count);
+    printf("Height = %d\n", h-1);   
+    printf("no. of nodes = %d\n", num_nodes+1);
+    printf("no. of leaf nodes = %d\n", num_leaves);
+    printf("Average leaf size = %f\n",avg_average_leaf_size);
 
-    printf("no. of nodes = %d\n", count_nodes+1);
-    printf("no. of leaf nodes = %d\n", count_leaf);
-
-    double average_leaf_size = (double)root->count/count_leaf;
-    double variance_leaf = (double)(sum2_leaf)/count_leaf - (average_leaf_size)*(average_leaf_size);
-    float std_dev_leaf = sqrt(variance_leaf);
-    printf("Average leaf size = %f\n",average_leaf_size);
-    printf("Stndard deviation of leaf size = %f\n", std_dev_leaf);
-
-    double avg_split2 = split2_sum1/count_nodes;
-    double var_split2 = split2_sum2/count_nodes - avg_split2*avg_split2;
-    double std_split2 = sqrt(var_split2);
-    printf("Average Split-2 quality= %f \nand Std_dev = %f\n", avg_split2, std_split2);
-
-    double avg_split3 = split3_sum1/count_nodes;
-    double var_split3 = split3_sum2/count_nodes - avg_split3*avg_split3;
-    double std_split3 = sqrt(var_split3);
-    printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_split3, std_split3);
-    
+    printf("Stndard deviation of leaf size = %f\n", avg_std_dev_leaf);
+    printf("Average Split-2 quality= %f \nand Std_dev = %f\n", avg_avg_split2, avg_std_split2);
+    printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_avg_split3, avg_std_split3);
     for(int i=0; i<3;++i){
-        printf("Test-%d data accuracy = %f\n", i+1, accuracy[i]);
+        printf("Test-%d data accuracy = %f\n", i+1, avg_aim[i]);
     }
-    free(accuracy);
-
-    check = Display_Naive_Tree(root);
     if(check == 1){
         printf("printed to the file\n");
     }
+    end = clock();
 
-    Free_tree(root);
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+
+    printf("Execution time: %f seconds\n", cpu_time_used);
+    
 
     return 0;    
 }
