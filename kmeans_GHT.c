@@ -4,12 +4,121 @@
 #include<math.h>
 #include<stdbool.h>
 #include<string.h>
+#include<float.h>
 
 #define dimension 3
 #define K 40
 #define and &&
 #define or ||
 #define ll long long
+
+typedef struct {
+    double *coords;
+    int cluster;
+} Point;
+
+typedef struct {
+    double *coords;
+    int count;
+} Centroid;
+
+double euclidean_distance(double *a, double *b, int d) {
+    double sum = 0;
+    for (int i = 0; i < d; i++) {
+        double diff = a[i] - b[i];
+        sum += diff * diff;
+    }
+    return sqrt(sum);
+}
+
+void initialize_centroids(Point *points, Centroid *centroids, int n, int k, int d) {
+    srand(100);
+    int *chosen = calloc(n, sizeof(int));
+    for (int i = 0; i < k; i++) {
+        int idx;
+        do {
+            idx = rand() % n;
+        } while (chosen[idx]);
+        chosen[idx] = 1;
+        for (int j = 0; j < d; j++) {
+            centroids[i].coords[j] = points[idx].coords[j];
+        }
+    }
+    free(chosen);
+}
+
+void assign_clusters(Point *points, Centroid *centroids, int n, int k, int d) {
+    for (int i = 0; i < n; i++) {
+        double min_dist = DBL_MAX;
+        int closest = 0;
+        for (int j = 0; j < k; j++) {
+            double dist = euclidean_distance(points[i].coords, centroids[j].coords, d);
+            if (dist < min_dist) {
+                min_dist = dist;
+                closest = j;
+            }
+        }
+        points[i].cluster = closest;
+    }
+}
+
+int update_centroids(Point *points, Centroid *centroids, int n, int k, int d) {
+    int changed = 0;
+
+    for (int i = 0; i < k; i++) {
+        for (int j = 0; j < d; j++)
+            centroids[i].coords[j] = 0;
+        centroids[i].count = 0;
+    }
+
+    for (int i = 0; i < n; i++) {
+        int c = points[i].cluster;
+        for (int j = 0; j < d; j++) {
+            centroids[c].coords[j] += points[i].coords[j];
+        }
+        centroids[c].count++;
+    }
+
+    for (int i = 0; i < k; i++) {
+        if (centroids[i].count == 0) continue;
+        for (int j = 0; j < d; j++) {
+            double new_val = centroids[i].coords[j] / centroids[i].count;
+            if (fabs(new_val - centroids[i].coords[j]) > 1e-6) changed = 1;
+            centroids[i].coords[j] = new_val;
+        }
+    }
+
+    return changed;
+}
+
+void kmeans(Point *points, int n, int d, int k, int max_iters, double **final_centroids) {
+    Centroid *centroids = malloc(k * sizeof(Centroid));
+    for (int i = 0; i < k; i++) {
+        centroids[i].coords = calloc(d, sizeof(double));
+    }
+
+    initialize_centroids(points, centroids, n, k, d);
+
+    for (int iter = 0; iter < max_iters; iter++) {
+        assign_clusters(points, centroids, n, k, d);
+        if (!update_centroids(points, centroids, n, k, d)) {
+            printf("Converged at iteration %d\n", iter);
+            break;
+        }
+    }
+
+    for (int i = 0; i < k; i++) {
+        for (int j = 0; j < d; j++) {
+            final_centroids[i][j] = centroids[i].coords[j];
+        }
+    }
+
+    for (int i = 0; i < k; i++) {
+        free(centroids[i].coords);
+    }
+    free(centroids);
+}
+
 
                                                 //defining the data types for the nodes and the data points
 
@@ -28,8 +137,8 @@ typedef struct data_point{
 
 typedef struct node{
 
-    int axis;
-    double median;
+    struct data_point* pivot_1;
+    struct data_point* pivot_2;
     struct data_point* data_chain;
 
     int count;
@@ -57,10 +166,10 @@ node * Create_node(){
     new_node->right_node=NULL;
     new_node->parent=NULL;
 
-    new_node->axis=-1;
-    new_node->median=0;
+    new_node->pivot_1=NULL;
+    new_node->pivot_2=NULL;
 
-    new_node->split_2quality= -1;
+    new_node->split_2quality=-1;
     new_node->split_3quality= -1;
 
     return new_node;
@@ -88,6 +197,19 @@ data_point * Create_point(){
     return new_point;
 }
 
+                                                // Defining the function to find the Eucledean distance
+
+double Distance(data_point * p1, data_point * p2){
+    
+    double sum=0;
+
+    for(int i=0; i< dimension; ++i){
+
+        sum += (p1->array[i]-p2->array[i])*(p1->array[i]- p2->array[i]);
+    }
+    return sqrt(sum);
+}
+
                                                 // Function to insert a single point into the node
 
 bool Insert_point(node * child, data_point* point){
@@ -108,7 +230,7 @@ bool Insert_point(node * child, data_point* point){
     return true;
 }
 
-                                                // Function to insert the data into the root at the begining
+                                                // Function to insert the multiple data points into the root, while constructing the tree
 
 bool Insert_data(node * root){
 
@@ -208,18 +330,6 @@ bool Insert_data(node * root){
     fclose(fptr);
     return true;
 }
-                                                // Hyperplane Generato :)
-
-                                            //for sorting
- int comp (const void * elem1, const void * elem2) 
-{
-    double f = *((double*)elem1);
-    double s = *((double*)elem2);
-    if (f > s) return  1;
-    if (f < s) return -1;
-    return 0;
-}
-
 
 int return_dimension_number_of_max_variance(node *new_node){
     double sum[dimension] = {0};
@@ -255,36 +365,80 @@ int return_dimension_number_of_max_variance(node *new_node){
     return max_variance_dimension;
 }
 
-double return_median_and_others(int max_variance_dimension, node *new_node){
-    data_point *dummy_point = new_node->data_chain;
-    data_point *dummy_point_2 = new_node->data_chain;
-    int total_number = 0;
-    while(dummy_point != NULL){
-        total_number++;
-        dummy_point = dummy_point->next;
-    }
-    double temp_array[total_number];
-    for(int j = 0;j<total_number;j++){
-        temp_array[j] = dummy_point_2->array[max_variance_dimension];
-        dummy_point_2 = dummy_point_2->next;
-    }
-    qsort(temp_array, sizeof(temp_array)/sizeof(*temp_array),sizeof(*temp_array), comp);
-    
-    if(total_number %2 == 0){
-        return (temp_array[total_number/2 -1] + temp_array[total_number/2])/2;
-    }
 
-    else return temp_array[total_number/2];
-}
+                                                // Hyperplane Generato :)
 
 bool Hyperplane_Generator (node * root){
+    
+    // If root is NULL
+    if(root == NULL){
+        printf("ERROR: NULL node input for hyperplane generator\n");
+        return false;
+    }
+    // int max_var = return_dimension_number_of_max_variance(root);
+    data_point * ptr = root->data_chain;
+    int n = root->count;
+    Point *points = malloc(n * sizeof(Point));
 
-    int max_var = return_dimension_number_of_max_variance(root);
-    root->axis=max_var;
+    for (int i = 0; i < n; i++) {
+        points[i].coords = malloc(dimension * sizeof(double));
+        for (int j = 0; j < dimension; j++){
+            points[i].coords[j] = ptr->array[j];
+        }
+        ptr = ptr->next;
+    }
+    double **centroids = malloc(2 * sizeof(double *));
+    for (int i = 0; i < 2; i++)
+        centroids[i] = malloc(dimension * sizeof(double));
 
-    double value = return_median_and_others(max_var, root);
-    root->median=value;
+    kmeans(points, n, dimension, 2, 100, centroids);
+    data_point * p1 = Create_point();
+    data_point * p2 = Create_point();
+    for(int i=0; i<dimension; ++i){
+        p1->array[i] = centroids[0][i];
+        p2->array[i] = centroids[1][i];
+    }
+    root->pivot_1 = p1;
+    root->pivot_2 = p2;
+
+    for (int i = 0; i < n; i++)
+        free(points[i].coords);
+    free(points);
+
+    for (int i = 0; i < 2; i++)
+        free(centroids[i]);
+    free(centroids);
     return true;
+}
+
+data_point* unit_vector(data_point * p1, data_point * p2){
+    data_point * unit_point = Create_point();
+    double sum2=0;
+
+    for(int i=0; i< dimension; ++i){
+        unit_point->array[i]= p2->array[i] - p1->array[i];
+        sum2 += unit_point->array[i] * unit_point->array[i];
+    }
+
+    for(int i=0; i< dimension; ++i){
+        unit_point->array[i] /= sqrt(sum2);
+    }
+    return unit_point;
+}
+
+double hyperplane(data_point * unit_point, data_point* mid_point, data_point* point){
+    data_point* new_point= Create_point();
+
+    for(int i=0; i< dimension; ++i){
+        new_point->array[i] = point->array[i] - mid_point->array[i];
+    }
+
+    double projection=0;
+    for(int i=0; i< dimension; ++i){
+        projection += new_point->array[i] * unit_point->array[i];
+    }
+    free(new_point);
+    return projection;
 }
 double absolute( double x){
     if(x>=0){
@@ -294,19 +448,10 @@ double absolute( double x){
         return -x;
     }
 }
-double Distance(data_point * p1, data_point * p2){
-    
-    double sum=0;
 
-    for(int i=0; i< dimension; ++i){
-
-        sum += (p1->array[i]-p2->array[i])*(p1->array[i]- p2->array[i]);
-    }
-    return sqrt(sum);
-}
+                                                // Function to construct the Tree in a recurcive manner
 
 bool Tree_Construct(node* root){
-
     if(root == NULL){
         printf("ERROR: NULL root given to Tree Constructor\n");
         return false;
@@ -328,38 +473,43 @@ bool Tree_Construct(node* root){
     double rsum1=0;
     double rsum2=0;
 
-    int dim= root->axis;
-    double median = root->median;
+    data_point *unit_point = unit_vector(root->pivot_1, root->pivot_2);
+    data_point * mid_point = Create_point();
+    for(int i=0; i<dimension; ++i){
+        mid_point->array[i]= (root->pivot_1->array[i] + root->pivot_2->array[i])/2;
+        // printf("%f, ", unit_point->array[i]);
+    }
+    // printf("\n");
 
     for (int i = 0; i < loop; ++i){
         if(point->next != NULL){
             // point is closer to pivot1
-            if(point->array[dim] < median){ 
+            if(Distance(point, root->pivot_1) > Distance(point, root->pivot_2)){ 
                 
                 point = point->next;
                 Insert_point(left_child, point->prev);
                 left_child->count++;
 
-                double x = point->array[dim] - median;
+                double x = hyperplane(unit_point, mid_point, point -> prev);
                 x = absolute(x);
                 lsum1 += x;
                 lsum2 += x*x;
                 
             }
             // point is closer to pivot2
-            else if(point->array[dim] > median){ 
+            else if(Distance(point, root->pivot_1) < Distance(point, root->pivot_2)){ 
                 
                 point = point->next;
                 Insert_point(right_child, point->prev);
                 right_child->count++;
 
-                double x = point->array[dim] - median;
+                double x = hyperplane(unit_point, mid_point, point -> prev);
                 x = absolute(x);
                 rsum1 += x;
                 rsum2 += x*x;                
             }
             // point is equiv distant from pivot1 and pivot2
-            else if(point->array[dim] == median){ 
+            else if(Distance(point, root->pivot_1) == Distance(point, root->pivot_2)){ 
 
                 root->equal_count++;
 
@@ -368,7 +518,7 @@ bool Tree_Construct(node* root){
                     Insert_point(left_child, point->prev);
                     left_child->count++;
                     
-                    double x = point->array[dim] -median;
+                    double x = hyperplane(unit_point, mid_point, point -> prev);
                     x = absolute(x);
                     lsum1 += x;
                     lsum2 += x*x;
@@ -378,43 +528,44 @@ bool Tree_Construct(node* root){
                     Insert_point(right_child, point->prev);
                     right_child->count++;
 
-                    double x = point->array[dim] - median;
+                    double x = hyperplane(unit_point, mid_point, point -> prev);
                     x = absolute(x);
                     rsum1 += x;
                     rsum2 += x*x;  
                     
                 }
-            } 
+            }
+            
         }
     }
     // last point in the data chian
 
     // point is closer to pivot1
-        if(point->array[dim] < median){ 
+        if(Distance(point, root->pivot_1) > Distance(point, root->pivot_2)){ 
             
             Insert_point(left_child, point);
             left_child->count++;
 
-            double x = point->array[dim] - median;
+            double x = hyperplane(unit_point, mid_point, point -> prev);
             x = absolute(x);
             lsum1 += x;
             lsum2 += x*x;
             
         }
         // point is closer to pivot2
-        else if(point->array[dim] > median){ 
+        else if(Distance(point, root->pivot_1) < Distance(point, root->pivot_2)){ 
             
             Insert_point(right_child, point);
             right_child->count++;
 
-            double x = point->array[dim] < median;
+            double x = hyperplane(unit_point, mid_point, point -> prev);
             x = absolute(x);
             rsum1 += x;
             rsum2 += x*x;  
             
         }
         // point is equiv distant from pivot1 and pivot2
-        else if(point->array[dim] == median){ 
+        else if(Distance(point, root->pivot_1) == Distance(point, root->pivot_2)){ 
 
             root->equal_count++;
 
@@ -423,7 +574,7 @@ bool Tree_Construct(node* root){
                 Insert_point(left_child, point);
                 left_child->count++;
 
-                double x = point->array[dim] - median;
+                double x = hyperplane(unit_point, mid_point, point -> prev);
                 x = absolute(x);
                 lsum1 += x;
                 lsum2 += x*x;
@@ -433,12 +584,14 @@ bool Tree_Construct(node* root){
                 Insert_point(right_child, point);
                 right_child->count++;
 
-                double x = point->array[dim] - median;
+                double x = hyperplane(unit_point, mid_point, point -> prev);
                 x = absolute(x);
                 rsum1 += x;
                 rsum2 += x*x;  
             }
         }
+
+        free(unit_point);
 
     root->left_node = left_child;
     left_child->parent = root;
@@ -520,14 +673,21 @@ void Free_tree(node *root){
 int Naive1=1;
 int Naive2=1;
 int Naive3=1;
+int jojojo=1;
 
 void node_info_printer(FILE *fptr, node* root){
+    if(root->pivot_1!=NULL){
+        fprintf(fptr, "node-%d <br>",jojojo);
+        jojojo++;
+    }
 
-    fprintf(fptr, "Axis : ");
-    // printf("axis: %d, median: %.2f\n",root->axis, root->median);
-    if(root->axis!=-1){
-        
-        fprintf(fptr, "x%d= %lf", root->axis+1, root->median);
+    fprintf(fptr, "p%d : ", Naive2);
+    
+    if(root->pivot_1!=NULL){
+        for(int i=0; i< dimension-1; ++i){
+            fprintf(fptr, "%.2lf, ", root->pivot_1->array[i]);
+        }
+        fprintf(fptr, "%.2lf", root->pivot_1->array[dimension-1]);
 
     }
     else{
@@ -535,6 +695,21 @@ void node_info_printer(FILE *fptr, node* root){
     }
     
     fprintf(fptr, "<br> count= %d <br> Equal_count= %d <br> Split 2Quality = %f <br> Split 3Quality = %f <br>", root->count, root->equal_count, root->split_2quality, root->split_3quality);
+    Naive2++;
+
+    fprintf(fptr, "p%d : ", Naive2);
+
+    if(root->pivot_2 != NULL){
+
+        for(int i=0; i< dimension-1; ++i){
+            fprintf(fptr, "%.2lf, ", root->pivot_2->array[i]);
+        }
+        fprintf(fptr, "%.2lf", root->pivot_2->array[dimension-1]);
+    }
+    else{
+        fprintf(fptr, "NULL");
+    }
+    Naive2++;
 
     return;
 }
@@ -558,9 +733,9 @@ void node_printer( FILE *fptr, node* root){
     return;
 }
 
-bool Display_VarMed_Tree(node*root){
+bool Display_Naive_Tree(node*root){
 
-    FILE *fptr = fopen("VarMed_Tree.md","w");
+    FILE *fptr = fopen("Naive_Tree.md","w");
 
     if(fptr == NULL){
         printf("ERROR: Opening the file\n");
@@ -568,7 +743,7 @@ bool Display_VarMed_Tree(node*root){
     }
     else{
         fprintf(fptr, "```mermaid\n");
-        fprintf(fptr,"flowchart TD\n\n");
+        fprintf(fptr,"flowchart\n\n");
         node_printer(fptr, root);
         //pivot_printer(fptr, root);
         fprintf(fptr,"```");
@@ -662,6 +837,7 @@ char* determine_cluster(node* leaf_node) {
     }
 
     data_point* current_point = leaf_node->data_chain;
+
     char* common_cluster = current_point->cluster;
     int max_count = 0;
 
@@ -681,6 +857,48 @@ char* determine_cluster(node* leaf_node) {
         current_point = current_point->next;
     }
     return common_cluster;
+}
+
+int string_size(char * string){
+    int i=0;
+    while(string[i] != '\0'){
+        ++i;
+    }
+    return i+1;
+}
+void string_copy (char *string, char * source){
+    int c=0;
+    while(source[c] != '\0'){
+        string[c] = source[c];
+        c++;
+    }
+    string[c]= '\0';
+    return;
+}
+int n_distinct_clusters( data_point * data_chain, int size){
+    if(data_chain == NULL){
+        return 0;
+    }
+    // int len = string_size(data_chain->cluster);
+
+    char ** list= (char **)malloc(sizeof(char*));
+    list[0] = data_chain->cluster;
+    // list[0] = data_chain->cluster;
+
+    int counter = 1;
+    data_point * ptr = data_chain->next;
+    while(ptr != NULL){
+        for(int j=0; j<counter; ++j){
+            if(strcmp(list[j], ptr->cluster) !=0 ){
+                counter++;
+                // len += string_size(ptr->cluster);
+                list= realloc(list, counter* sizeof(char *));
+                list[counter-1] =  ptr->cluster;
+                break;
+            }
+        }
+    }
+    return counter;
 }
 
 void distinct_clusters(data_point *data_chain, char ***list_ptr, int *counter_ptr) {
@@ -762,23 +980,20 @@ char * weighted_vote_determine_cluster(node * leaf_node, data_point * new_point)
     return result;
 
 }
-
-
 int Insert_new_point(node* root, data_point* new_point) {
+    // printf("hello world\n");
 
     if (!root || !new_point) {
         return false;
     }
     node* current_node = root;
-    current_node-> count++;
+    current_node->count++;
 
-    while(current_node->left_node && current_node->right_node) {
-        int axis = current_node->axis;
-    
-        if(new_point->array[axis] < current_node->median){
-            current_node= current_node->left_node;
+    while ((current_node->left_node != NULL) && (current_node->right_node != NULL)){
+        if(Distance(new_point, current_node->pivot_1) > Distance(new_point, current_node->pivot_2)){
+            current_node = current_node->left_node;
         }
-        else if(new_point->array[axis] > current_node->median){
+        else if(Distance(new_point, current_node->pivot_1) < Distance(new_point, current_node->pivot_2)){
             current_node = current_node->right_node;
         }
         else{
@@ -791,30 +1006,26 @@ int Insert_new_point(node* root, data_point* new_point) {
             }
         }
     }
-
     int return_value=0;
     char* assigned_cluster = determine_cluster(current_node);
     char* new_assigned_cluster = weighted_vote_determine_cluster(current_node, new_point);
-    // printf("cluster = %s and assigned = %s\n", new_point->cluster, assigned_cluster);
 
     if(!Insert_point(current_node, new_point)){
         return false;
     }
     current_node->count++;
 
-    assigned_cluster = new_assigned_cluster;
-
-    if(assigned_cluster != NULL){
-        if(!(strcmp(new_point->cluster, assigned_cluster)==0)){
+    if(new_assigned_cluster != NULL){
+        if(!(strcmp(new_point->cluster, new_assigned_cluster)==0)){
             if(current_node->count > 2 * K){
-            int read= Tree_Construct(current_node);
-            if(read!=1){
-                printf("construction went wrong at 1\n");
+                int read= Tree_Construct(current_node);
+                if(read!=1){
+                    printf("construction went wrong at 1\n");
+                }
             }
-            }
-            // printf("cluster = %s and assigned = %s, new assigned = %s\n", new_point->cluster, assigned_cluster, new_assigned_cluster);
-            // printf("Assign= %s, found= %s \n",assigned_cluster, new_point->cluster);
-            return 2;
+        // printf("cluster = %s and assigned = %s, new assigned = %s\n", new_point->cluster, assigned_cluster, new_assigned_cluster);
+            // printf("Assign= %s, found= %s ",assigned_cluster, new_point->cluster);
+        return 2;
         }
     }
 
@@ -826,6 +1037,7 @@ int Insert_new_point(node* root, data_point* new_point) {
     }
     return true;
 }
+
 double* Accuracy(node * root){
     FILE *fptr = fopen("test_data.csv","r");
 
@@ -834,7 +1046,6 @@ double* Accuracy(node * root){
 
         return false;
     }
-
     int counter=0;
     int positive[3]={0};
     int negative[3]={0};
@@ -856,10 +1067,9 @@ double* Accuracy(node * root){
 
         if( read != 1){
             printf("cluster-2 not read\n");
-            fclose(fptr);
+
             return false;
         }
-
         if((strcmp(new_point->cluster,"sattar")==0)){
             n ++;
             // printf("read sattar\n");
@@ -890,7 +1100,6 @@ double* Accuracy(node * root){
         }
 
         read = Insert_new_point(root, new_point);
-        // printf("read = %d\n", read);
         if(read == 1){
             positive[n] ++;
             // printf("Yes!!!,%d \n", positive[n]);
@@ -939,7 +1148,13 @@ void print_pivot(node * root, FILE* file){
     if(root->left_node!=NULL){
         fprintf(file, "%d,",jojo);
         jojo++;
-        fprintf(file, "%d,%f\n",root->axis,root->median);
+        for(int i=0; i<dimension;++i){
+            fprintf(file,"%f,",root->pivot_1->array[i]);
+        }
+        for(int i=0; i<dimension-1;++i){
+            fprintf(file,"%f,",root->pivot_2->array[i]);
+        }
+        fprintf(file, "%f\n", root->pivot_2->array[dimension-1]);
 
         print_pivot(root->left_node, file);
         print_pivot(root->right_node,file);
@@ -953,65 +1168,117 @@ int main(){
 
     start = clock();
 
-    node * root = Create_node();
-
     bool check;
+    int n=1;
+    int h=0;
+    double avg_average_leaf_size=0;
+    double avg_std_dev_leaf =0;
+    double avg_avg_split2 =0;
+    double avg_std_split2 =0;
+    double avg_avg_split3 =0;
+    double avg_std_split3=0;
+    double avg_aim[3]={0,0,0};
+    int count=0;
+    int num_nodes =0;
+    int num_leaves=0;
 
-    check = Insert_data(root);
+    for(int i=0; i<n;++i){
+        node * root = Create_node();
 
-    if(!check){
-        return 0;
+        check = Insert_data(root);
+        if(!check){
+            return 0;
+        }
+        Tree_Construct(root);
+        double* accuracy= Accuracy(root);
+        
+        count += root->count;
+        for(int a=0; a<3; ++a){
+            avg_aim[a] += accuracy[a];
+        }
+
+        h += height_of_tree(root);
+
+        double average_leaf_size = (double)root->count/count_leaf;
+        double variance_leaf = (double)(sum2_leaf)/count_leaf - (average_leaf_size)*(average_leaf_size);
+        double std_dev_leaf = sqrt(variance_leaf);
+
+        avg_average_leaf_size += average_leaf_size;
+        avg_std_dev_leaf += std_dev_leaf;
+
+        double avg_split2 = split2_sum1/count_nodes;
+        double var_split2 = split2_sum2/count_nodes - avg_split2*avg_split2;
+        double std_split2 = sqrt(var_split2);
+
+        avg_avg_split2 += avg_split2;
+        avg_std_split2 += std_split2;
+
+        double avg_split3 = split3_sum1/count_nodes;
+        double var_split3 = split3_sum2/count_nodes - avg_split3*avg_split3;
+        double std_split3 = sqrt(var_split3);
+
+        avg_avg_split3 += avg_split3;
+        avg_std_split3 += std_split3;
+
+        num_nodes += count_nodes+1;
+        num_leaves += count_leaf;
+
+        free(accuracy);
+
+        FILE * file = fopen("Naive_pivots.csv","w");
+        if(file != NULL){
+            print_pivot(root, file);
+            fclose(file);
+        }
+        else{
+            printf("ERROR opening the file pivots.csv\n");
+        }
+        check = Display_Naive_Tree(root);
+        Free_tree(root);
+        count_nodes=0;
+        count_leaf=0;
+        sum2_leaf=0;
+        split2_sum1=0;
+        split3_sum1=0;
+        split2_sum2=0;
+        split3_sum2=0;
     }
+    for(int a=0; a<3; ++a){
 
-    Tree_Construct(root);
-    double* accuracy= Accuracy(root);
-    printf("root count = %d\n", root->count);
-
-    int h = height_of_tree(root);
-    printf("Height = %d\n", h-1);
-
-    printf("no. of nodes = %d\n", count_nodes+1);
-    printf("no. of leaf nodes = %d\n", count_leaf);
-
-    double average_leaf_size = (double)root->count/count_leaf;
-    double variance_leaf = (double)(sum2_leaf)/count_leaf - (average_leaf_size)*(average_leaf_size);
-    float std_dev_leaf = sqrt(variance_leaf);
-    printf("Average leaf size = %f\n",average_leaf_size);
-    printf("Stndard deviation of leaf size = %f\n", std_dev_leaf);
-
-    double avg_split2 = split2_sum1/count_nodes;
-    double var_split2 = split2_sum2/count_nodes - avg_split2*avg_split2;
-    double std_split2 = sqrt(var_split2);
-    printf("Average Split-2 quality= %f \nand Std_dev = %f\n", avg_split2, std_split2);
-
-    double avg_split3 = split3_sum1/count_nodes;
-    double var_split3 = split3_sum2/count_nodes - avg_split3*avg_split3;
-    double std_split3 = sqrt(var_split3);
-    printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_split3, std_split3);
-
-     for(int i=0; i<3;++i){
-        printf("Test-%d data accuracy = %f\n", i+1, accuracy[i]);
+        avg_aim[a] /= n;
     }
-    free(accuracy);
-    FILE * file = fopen("VarMed_pivots.csv","w");
-    if(file != NULL){
-        print_pivot(root, file);
+    num_leaves /=n;
+    num_nodes /=n;
+    count /= n;
+    h /=n;
+    avg_average_leaf_size /=n;
+    avg_std_dev_leaf /=n;
+    avg_avg_split2 /= n;
+    avg_std_split2 /= n;
+    avg_avg_split3 /= n;
+    avg_std_split3 /= n;
+
+    printf("root count = %d\n", count);
+    printf("Height = %d\n", h-1);   
+    printf("no. of nodes = %d\n", num_nodes+1);
+    printf("no. of leaf nodes = %d\n", num_leaves);
+    printf("Average leaf size = %f\n",avg_average_leaf_size);
+
+    printf("Stndard deviation of leaf size = %f\n", avg_std_dev_leaf);
+    printf("Average Split-2 quality= %f \nand Std_dev = %f\n", avg_avg_split2, avg_std_split2);
+    printf("Average Split-3 quality= %f \nand Std_dev = %f\n", avg_avg_split3, avg_std_split3);
+    for(int i=0; i<3;++i){
+        printf("Test-%d data accuracy = %f\n", i+1, avg_aim[i]);
     }
-    else{
-        printf("ERROR opening the file pivots.csv\n");
-    }
-    check = Display_VarMed_Tree(root);
     if(check == 1){
         printf("printed to the file\n");
     }
-
-    Free_tree(root);
     end = clock();
 
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
 
     printf("Execution time: %f seconds\n", cpu_time_used);
-
+    
 
     return 0;    
 }
