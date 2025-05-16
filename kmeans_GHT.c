@@ -1273,6 +1273,7 @@ int main(){
     if(check == 1){
         printf("printed to the file\n");
     }
+
     end = clock();
 
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
