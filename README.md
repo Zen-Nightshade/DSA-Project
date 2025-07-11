@@ -77,4 +77,4 @@ A hybrid between VarMed and k-means GHT.
 | **Naive**     | Random pair of points           |  No                   | Oblique (random)         |  Very Low           | Large number of clusters; simplicity preferred            |
 | **VarMed**    | Highest variance + median       |  Partial (variance)   | Axis-aligned             |  Low                | Low number of clusters; need balanced splits              |
 | **k-means**   | k-means (k=2) centroids         |  Full (distribution) | Oblique (centroid-based) |  High               | Few clusters; complex distribution shapes                 |
-| **D1-kmeans** | k-means on highest variance dim |  Balanced             | Axis-aligned (1D)        | ⚖️ Moderate          | Mid-point between performance and cost in high dimensions |
+| **D1-kmeans** | k-means on highest variance dim |  Balanced             | Axis-aligned (1D)        |  Moderate          | Mid-point between performance and cost in high dimensions |
