@@ -6,7 +6,7 @@
 #include<string.h>
 #include<float.h>
 
-#define dimension 10
+#define dimension 3
 #define K 40
 #define and &&
 #define or ||
