@@ -1,6 +1,7 @@
 import subprocess as sub
 import matplotlib.pyplot as plt
 import numpy as num
+import time
 
 Naive_Height = []
 
@@ -30,18 +31,56 @@ VarMed_Split_2_std =[]
 VarMed_Split_3_avg =[]
 VarMed_Split_3_std =[]
 
-dimension =3
-N=1000
-clusters = 2
+Naive_A1=[]
+Naive_A2=[]
+Naive_A3=[]
+
+VarMed_A1=[]
+VarMed_A2=[]
+VarMed_A3=[]
+
+dimension =50
+N=10000
+clusters = 50
 input_data=''
-percentages = []
-for z in range(99):
-    percentages.clear()
-    percentages.append(z+1)
-    percentages.append(99-z)
-    
+percentages=[]
+for i in range(clusters):
+    percentages.append(2)
+
+
+for z in range(201):
+    # clusters = 2+z
+    # percentages=[]
+    # for i in range(clusters-1):
+    #     jojo = int(100/clusters)
+    #     percentages.append(jojo)
+
+    # jojojo = 100- int(100/clusters) * (clusters-1)
+    # percentages.append(jojojo)
+    dimension = z+10
+    files = ['VarMed_GHT.c', 'Naive_GHT.c']
+    old_dimesion = "dimension " + str(dimension-1)
+    new_dimension = "dimension " + str(dimension)
+
+    # Read the contents of the file
+    for filename in files:
+        with open(filename, 'r') as file:
+            content = file.read()
+        if z==0:
+            content = content.replace("dimension 2", new_dimension, 1)
+        else:
+            content = content.replace(old_dimesion, new_dimension, 1)
+
+        with open(filename, 'w') as file:
+            file.write(content)
+
     input_data=''
-    input_data += str(dimension)+'\n'+str(N)+'\n'+str(clusters)+'\n'+str(percentages[0])+'\n'+str(percentages[1])+'\n'+'Y\n'
+    input_data += str(dimension)+'\n'+str(N)+'\n'+str(clusters)+'\n'+str(50)+'\n'
+
+    for i in range(clusters):
+        # print(percentages[i])
+        input_data += str(percentages[i])+'\n'
+    input_data += 'Y\n'
 
     compile_generator= sub.run(['gcc', 'datapoint_generator.c', '-o', 'out','-lm'])
     run_generator= sub.run(['./out'], input= input_data.encode(), capture_output=True)
@@ -56,11 +95,19 @@ for z in range(99):
     run_Naive_Tree= sub.run(['./out'], input= input_data.encode(), capture_output=True)
     Naive_output= run_Naive_Tree.stdout.decode("utf-8")
     
-    x= 27
+    time.sleep(1)
+    # print(Naive_output)
+
+
+    x= 15
     while Naive_output[x] != '\n':
         x +=1
-
-    Naive_Height.append(int(Naive_output[27:x]))
+    y=x+10
+    x+=10
+    
+    while Naive_output[x] != '\n':
+        x +=1
+    Naive_Height.append(int(Naive_output[y:x]))
 
     y=x+16
     x +=16
@@ -108,14 +155,35 @@ for z in range(99):
     while Naive_output[x] != '\n':
         x +=1
     Naive_Split_3_std.append(float(Naive_output[y:x]))
+
+    y=x+24
+    x+=24
+    while Naive_output[x] != '\n':
+        x +=1
+    Naive_A1.append(float(Naive_output[y:x]))
+
+    y=x+24
+    x+=24
+    while Naive_output[x] != '\n':
+        x +=1
+    Naive_A2.append(float(Naive_output[y:x]))
+
+    y=x+24
+    x+=24
+    while Naive_output[x] != '\n':
+        x +=1
+    Naive_A3.append(float(Naive_output[y:x]))
     # print(Height, Nodes, Leaves, Leaf_size_avg, Leaf_size_std, Split_2_avg,Split_2_std,Split_3_avg,Split_3_std,sep='\n')
     # print(Naive_output)
-
-    x= 27
+ 
+    x= 15
     while VarMed_output[x] != '\n':
         x +=1
-
-    VarMed_Height.append(int(VarMed_output[27:x]))
+    y=x+10
+    x+=10
+    while VarMed_output[x] != '\n':
+        x +=1
+    VarMed_Height.append(int(VarMed_output[y:x]))
 
     y=x+16
     x +=16
@@ -163,6 +231,23 @@ for z in range(99):
     while VarMed_output[x] != '\n':
         x +=1
     VarMed_Split_3_std.append(float(VarMed_output[y:x]))
+    y=x+24
+    x+=24
+    while VarMed_output[x] != '\n':
+        x +=1
+    VarMed_A1.append(float(VarMed_output[y:x]))
+
+    y=x+24
+    x+=24
+    while VarMed_output[x] != '\n':
+        x +=1
+    VarMed_A2.append(float(VarMed_output[y:x]))
+
+    y=x+24
+    x+=24
+    while VarMed_output[x] != '\n':
+        x +=1
+    VarMed_A3.append(float(VarMed_output[y:x]))
     # print(Height, Nodes, Leaves, Leaf_size_avg, Leaf_size_std, Split_2_avg,Split_2_std,Split_3_avg,Split_3_std,sep='\n')
     # print(VarMed_output)
     if z%10 ==0:
@@ -173,7 +258,7 @@ for z in range(99):
 x = range(len(Naive_Height))  # Match the x-axis length with the data lists
 
 # Plot Naive data with solid lines
-plt.plot(x, Naive_Height, color='red', linestyle='-', label='Naive Height')
+plt.plot(x, Naive_Height, color='red', linestyle='-', label='Random Height')
 # plt.plot(x, Naive_Nodes, color='blue', linestyle='-', label='Naive No. of nodes')
 # plt.plot(x, Naive_Leaves, color='green', linestyle='-', label='Naive No. of leaves')
 # plt.plot(x, Naive_Leaf_size_avg, color='purple', linestyle='-', label='Naive Avg leaf size')
@@ -182,9 +267,11 @@ plt.plot(x, Naive_Height, color='red', linestyle='-', label='Naive Height')
 # plt.plot(x, Naive_Split_2_std, color='magenta', linestyle='-', label='Naive Std Split-2')
 # plt.plot(x, Naive_Split_3_avg, color='brown', linestyle='-', label='Naive Avg Split-3')
 # plt.plot(x, Naive_Split_3_std, color='grey', linestyle='-', label='Naive Std Split-3')
-
+# plt.plot(x, Naive_A1, color='darkviolet', linestyle='-', label='Test-1 Accuracy')
+# plt.plot(x, Naive_A2, color='orangeRed', linestyle='-', label='Accuracy')
+plt.plot(x, Naive_A3, color='limegreen', linestyle='-', label='Test Accuracy for Random')
 # Plot VarMed data with dashed lines
-plt.plot(x, VarMed_Height, color='red', linestyle='--', label='VarMed Height')
+plt.plot(x, VarMed_Height, color='red', linestyle='--', label='Variance Height')
 # plt.plot(x, VarMed_Nodes, color='blue', linestyle='--', label='VarMed No. of nodes')
 # plt.plot(x, VarMed_Leaves, color='green', linestyle='--', label='VarMed No. of leaves')
 # plt.plot(x, VarMed_Leaf_size_avg, color='purple', linestyle='--', label='VarMed Avg leaf size')
@@ -193,10 +280,13 @@ plt.plot(x, VarMed_Height, color='red', linestyle='--', label='VarMed Height')
 # plt.plot(x, VarMed_Split_2_std, color='magenta', linestyle='--', label='VarMed Std Split-2')
 # plt.plot(x, VarMed_Split_3_avg, color='brown', linestyle='--', label='VarMed Avg Split-3')
 # plt.plot(x, VarMed_Split_3_std, color='grey', linestyle='--', label='VarMed Std Split-3')
+# plt.plot(x, VarMed_A1, color='darkviolet', linestyle='--', label='Test-1 Accuracy')
+# plt.plot(x, VarMed_A2, color='orangeRed', linestyle='--', label='Accuracy')
+plt.plot(x, VarMed_A3, color='limegreen', linestyle='--', label='Test Accuracy for Variance')
 
 plt.axhline(y=0, color='black', linewidth=0.5)
 plt.axvline(x=0, color='black', linewidth=0.5)
-
-plt.xlabel('percentage distribution')
+plt. title("Random Vs Variance 10k pts and 50D")
+plt.xlabel('Dimensions')
 plt.legend()
 plt.show()

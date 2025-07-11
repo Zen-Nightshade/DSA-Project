@@ -2,3 +2,6 @@
 *.md
 out
 *.csv
+**/.ipynb_checkpoints/
+.jupyter/
+__pycache__/

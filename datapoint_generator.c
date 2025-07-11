@@ -4,7 +4,7 @@
 #include<time.h>
 
 #define min_treshold 10
-#define threshold 50
+#define threshold 100
 int clusters=4;
 int N=1000;
 
@@ -166,9 +166,10 @@ void generate_points(Point *centers, double *radii, int *percentages, int dimens
             fprintf(file, "Cluster-%d", cluster_id + 1);
 
             // Generate point coordinates within the radius
+            // int j=1;
             for (int d = 0; d < dimensions; d++){
-
-                double offset = ((rand() % 100) / 100.0) * radii[cluster_id];  // Random offset within radius
+                // j*= 10;
+                double offset = ((rand() % 200-100) / 100.0) * radii[cluster_id];  // Random offset within radius
                 double coordinate = centers[cluster_id].coordinates[d] + offset;
                 fprintf(file, ",%lf", coordinate);
             }
@@ -251,24 +252,25 @@ int Generate_test_data(Point * centers, double * radii,int dimensions, int test)
 
     double offset[dimensions];
 
-    for(int j = 0; j < dimensions; j++){
-        offset[j] = ((rand() % 200) - 100) / 10.0;  // Generate random offset from the centers
-    }
-
-    // getting the divider to generate direction cosine
-    double divider = Direction_cosine(offset, dimensions);
     
-    for(int j = 0; j < dimensions; j++){
-        offset[j] = (offset[j] / divider);  // making the random offset direction cosines
-    }
 
     for(int i=0; i<clusters; ++i){
         for(int j=1; j<=test; ++j){
+            for(int j = 0; j < dimensions; j++){
+                offset[j] = ((rand() % 200) - 100) / 10.0;  // Generate random offset from the centers
+            }
+
+            // getting the divider to generate direction cosine
+            double divider = Direction_cosine(offset, dimensions);
+            
+            for(int j = 0; j < dimensions; j++){
+                offset[j] = (offset[j] / divider);  // making the random offset direction cosines
+            }
             fprintf(fptr, "Cluster-%d", i+1);
             for(int k=0; k <dimensions; ++k){
                 double coordinates;
                 // adding the random offset to the coordinates and printing it to the file
-                coordinates= centers[i].coordinates[k] + (offset[k]*radii[i]*j)/test;
+                coordinates= centers[i].coordinates[k] +offset[k]*radii[i] + 2*(offset[k]*(radii[i])*j)/test;
                 fprintf(fptr, ",%f", coordinates);
             }
             // avoiding the newline after printing the last line in the CSV file
