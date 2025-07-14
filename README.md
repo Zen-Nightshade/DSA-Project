@@ -4,7 +4,9 @@
 
 A **GHT** (Generalized Hyperplane Tree) is a tree-based spatial partitioning data structure used primarily for efficient nearest neighbor search in high-dimensional spaces. It extends traditional structures like kd-trees and binary space partitioning (BSP) trees, providing better performance and flexibility in high-dimensional settings where classic approaches often struggle.
 
-GHTs recursively partition a dataset by splitting it into two subsets at each node, using a hyperplane as the decision boundary. The way this hyperplane is chosen greatly affects the tree's efficiency and adaptability to the data.
+GHTs recursively partition a dataset by splitting it into two subsets at each node, using a hyperplane as the decision boundary. A node is recursively split until the number of points it contains lies between **K and 2K**, where **K** is a predefined constant specified at the beginning of the C file. The way this hyperplane is chosen greatly affects the tree's efficiency and adaptability to the data.
+
+After the tree is constructed, the cluster assignment for a new point is determined using a **weighted voting system** at the leaf node. Unlike traditional majority voting, where each training point contributes one vote to its cluster, this method assigns each point a weight of $\frac{1}{1 + d}$, where $d$ is the distance between the point and the new input. This gives closer points more influence in the decision, improving classification accuracy.
 
 ---
 
